@@ -700,20 +700,33 @@ body::after {
 }
 .stacked-bar {
   display: flex;
-  height: 46px;
+  height: 54px;
   border-radius: 10px;
   overflow: hidden;
   background: oklch(0.23 0.02 222 / 0.6);
 }
 .bar-segment {
   display: grid;
-  place-items: center;
-  font: 600 13px/1 var(--mono);
+  place-content: center;
+  justify-items: center;
+  row-gap: 3px;
   color: var(--bg-deep);
   white-space: nowrap;
+  overflow: hidden;
   transform-origin: left center;
   transform: scaleX(0);
   transition: transform 700ms var(--ease-out);
+}
+.bar-segment b {
+  font: 600 15px/1 var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.bar-segment i {
+  font: 700 8.5px/1 var(--mono);
+  font-style: normal;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.72;
 }
 .stacked-bar.built .bar-segment { transform: scaleX(1); }
 .bar-legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 12px; }

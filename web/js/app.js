@@ -122,21 +122,37 @@ function renderBreakdown(quote) {
   bar.innerHTML = "";
   legend.innerHTML = "";
   const segments = [
-    { label: "Seller handling", value: quote.handling_days, varName: "--seg-handling", yours: true },
-    { label: "Lane transit (median)", value: quote.transit_median_days, varName: "--seg-median" },
-    { label: "Lane transit (tail)", value: quote.transit_tail_days, varName: "--seg-tail" },
+    { label: "Your handling — sale → carrier handoff", tag: "your handling",
+      value: quote.handling_days, varName: "--seg-handling", yours: true },
+    { label: "Distance — median carrier transit", tag: "distance",
+      value: quote.transit_median_days, varName: "--seg-median" },
+    { label: "The tail — variance allowance (p95 − median)", tag: "the tail",
+      value: quote.transit_tail_days, varName: "--seg-tail" },
   ];
   if (Math.abs(quote.season_days) > 0.01) {
-    segments.push({ label: "Seasonal load", value: quote.season_days, varName: "--seg-season" });
+    segments.push({ label: "Season load — this month's history", tag: "season",
+      value: quote.season_days, varName: "--seg-season" });
   }
   const total = segments.reduce((s, seg) => s + Math.max(seg.value, 0), 0) || 1;
   segments.forEach((seg, i) => {
+    const pct = Math.max(seg.value, 0) / total;
     const el = document.createElement("div");
     el.className = "bar-segment";
-    el.style.width = `${(Math.max(seg.value, 0) / total) * 100}%`;
+    el.style.width = `${pct * 100}%`;
     el.style.background = `var(${seg.varName})`;
     el.style.transitionDelay = `${i * 130}ms`;
-    if ((Math.max(seg.value, 0) / total) > 0.1) el.textContent = `${fmt(seg.value, 0)}d`;
+    if (pct > 0.13) {
+      // wide segment: number + its role, stacked
+      const n = document.createElement("b");
+      n.textContent = `${fmt(seg.value, 0)}d`;
+      const t = document.createElement("i");
+      t.textContent = seg.tag;
+      el.append(n, t);
+    } else if (pct > 0.055) {
+      const n = document.createElement("b");
+      n.textContent = `${fmt(seg.value, 0)}d`;
+      el.appendChild(n);
+    }
     el.title = `${seg.label}: ${fmt(seg.value, 1)}d`;
     bar.appendChild(el);
 
@@ -145,7 +161,7 @@ function renderBreakdown(quote) {
     const sw = document.createElement("span");
     sw.className = "legend-swatch";
     sw.style.background = `var(${seg.varName})`;
-    item.append(sw, `${seg.label}${seg.yours ? " (yours)" : ""} — ${fmt(seg.value, 1)}d`);
+    item.append(sw, `${seg.label} — ${fmt(seg.value, 1)}d`);
     legend.appendChild(item);
   });
   requestAnimationFrame(() => requestAnimationFrame(() => bar.classList.add("built")));
