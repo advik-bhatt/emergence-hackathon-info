@@ -39,7 +39,7 @@ def test_rio_is_unpredictable_not_slow(lanes):
     """The whole thesis in one assertion: Rio's median beats several PAD lanes,
     but its tail is the worst in the country."""
     assert lanes["RJ"].median_days < lanes["BA"].median_days
-    assert lanes["RJ"].variance_share > lanes["BA"].variance_share
+    assert lanes["RJ"].tail_fraction > lanes["BA"].tail_fraction
 
 
 def test_sao_paulo_is_already_calibrated(lanes):

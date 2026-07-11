@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from promise_engine.analysis.verdict import Verdict, decide, variance_share
+from promise_engine.analysis.verdict import Verdict, decide, tail_fraction
 
 
 @dataclass(frozen=True)
@@ -66,8 +66,14 @@ class Lane:
         return max(self.gap, 0.0) * self.orders
 
     @property
-    def variance_share(self) -> float:
-        return variance_share(self.median_days, self.p95_days)
+    def tail_fraction(self) -> float:
+        """Fraction of the required promise (p95) that is tail rather than distance.
+
+        Only meaningful conditional on this lane actually having a gap (see decide) — for an
+        already-calibrated lane it says nothing about volatility, since it mechanically
+        rewards fast lanes too. See the docstring on tail_fraction() in verdict.py.
+        """
+        return tail_fraction(self.median_days, self.p95_days)
 
     @property
     def tail_days(self) -> float:
