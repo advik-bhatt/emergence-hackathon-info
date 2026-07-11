@@ -1,19 +1,37 @@
 import pytest
-from promise_engine.analysis.verdict import Verdict, decide, flip_distance_days
+from promise_engine.analysis.verdict import Verdict, decide, flip_distance_days, tail_fraction
 
-# (state, promised, median, p95, expected) — verified against live Olist data
+# (state, promised, median, p95, expected) — all 17 lanes with >= 500 orders in the Olist
+# fixture (fixtures/lanes.json). Expected verdict is reasoned out from the rule itself, not
+# copied from whatever the code currently returns:
+#
+#   gap = p95 - promised; if gap <= 1.5 -> OK
+#   tail_fraction = (p95 - median) / p95; if tail_fraction >= 0.60 AND (p95 - median) >= 5.0
+#       -> FIX
+#   else -> PAD
+#
+# gap and tail_fraction are noted per lane so the expected column can be checked by eye.
 GROUND_TRUTH = [
-    ("SP", 19.8, 7.0, 20.0, Verdict.OK),
-    ("MG", 25.2, 10.0, 24.4, Verdict.OK),
-    ("PR", 25.3, 10.0, 25.0, Verdict.OK),
-    ("DF", 24.9, 11.0, 26.0, Verdict.OK),   # gap +1.1, inside tolerance
-    ("MT", 32.4, 16.0, 34.0, Verdict.PAD),
-    ("BA", 30.1, 17.0, 37.0, Verdict.PAD),
-    ("PA", 37.8, 21.0, 46.8, Verdict.PAD),  # genuinely far — padding is honest
-    ("MA", 31.1, 19.0, 41.2, Verdict.PAD),
-    ("RS", 29.2, 13.0, 33.0, Verdict.FIX),  # var share 0.606 — the lane humans missed
-    ("RJ", 27.0, 12.0, 38.0, Verdict.FIX),
-    ("CE", 32.0, 18.0, 45.0, Verdict.FIX),
+    # --- OK: gap <= 1.5 --------------------------------------------------------------
+    ("MG", 25.2, 10.0, 24.4, Verdict.OK),   # gap -0.8
+    ("PR", 25.3, 10.0, 25.0, Verdict.OK),   # gap -0.3
+    ("SP", 19.8, 7.0, 20.0, Verdict.OK),    # gap +0.2
+    ("DF", 24.9, 11.0, 26.0, Verdict.OK),   # gap +1.1
+    ("GO", 27.7, 14.0, 29.0, Verdict.OK),   # gap +1.3
+    # --- FIX: gap > 1.5 and tail_fraction >= 0.60 (and tail >= 5.0) -------------------
+    ("RS", 29.2, 13.0, 33.0, Verdict.FIX),  # gap +3.8, tail_fraction 20/33 = 0.606
+    ("RJ", 27.0, 12.0, 38.0, Verdict.FIX),  # gap +11.0, tail_fraction 26/38 = 0.684
+    ("CE", 32.0, 18.0, 45.0, Verdict.FIX),  # gap +13.0, tail_fraction 27/45 = 0.600 exactly
+    # --- PAD: gap > 1.5 but tail_fraction < 0.60 --------------------------------------
+    ("MT", 32.4, 16.0, 34.0, Verdict.PAD),  # gap +1.6, tail_fraction 18/34 = 0.529
+    ("MS", 26.6, 14.0, 31.0, Verdict.PAD),  # gap +4.4, tail_fraction 17/31 = 0.548
+    ("SC", 26.4, 13.0, 31.0, Verdict.PAD),  # gap +4.6, tail_fraction 18/31 = 0.581
+    ("ES", 26.2, 14.0, 31.0, Verdict.PAD),  # gap +4.8, tail_fraction 17/31 = 0.548
+    ("PB", 33.6, 18.0, 40.2, Verdict.PAD),  # gap +6.6, tail_fraction 22.2/40.2 = 0.552
+    ("BA", 30.1, 17.0, 37.0, Verdict.PAD),  # gap +6.9, tail_fraction 20/37 = 0.541
+    ("PE", 31.7, 16.0, 39.4, Verdict.PAD),  # gap +7.7, tail_fraction 23.4/39.4 = 0.594
+    ("PA", 37.8, 21.0, 46.8, Verdict.PAD),  # gap +9.0, tail_fraction 25.8/46.8 = 0.551
+    ("MA", 31.1, 19.0, 41.2, Verdict.PAD),  # gap +10.1, tail_fraction 22.2/41.2 = 0.539
 ]
 
 
@@ -38,8 +56,30 @@ def test_fast_but_unpredictable_lane_fixes():
     assert decide(promised_days=20.0, median_days=5.0, p95_days=40.0) == Verdict.FIX
 
 
-def test_zero_p95_does_not_divide_by_zero():
-    assert decide(promised_days=1.0, median_days=0.0, p95_days=0.0) == Verdict.OK
+def test_tail_fraction_zero_p95_does_not_divide_by_zero():
+    """decide(promised_days=1.0, median_days=0.0, p95_days=0.0) never actually reaches the
+    division: gap = 0 - 1 = -1 <= 1.5, so it short-circuits to OK before tail_fraction is
+    even called. Exercise the zero-p95 guard directly instead."""
+    assert tail_fraction(0.0, 0.0) == 0.0
+
+
+# --- FIX 6: boundary tests --------------------------------------------------------------
+
+def test_gap_exactly_at_tolerance_is_ok():
+    """gap == OK_TOLERANCE_DAYS (1.5) must be OK: the comparison is <=."""
+    assert decide(promised_days=10.0, median_days=5.0, p95_days=11.5) == Verdict.OK
+
+
+def test_gap_just_over_tolerance_is_not_ok():
+    """gap == 1.51, one hundredth of a day over tolerance, must not be OK."""
+    assert decide(promised_days=10.0, median_days=5.0, p95_days=11.51) != Verdict.OK
+
+
+def test_tail_fraction_exactly_at_threshold_is_fix():
+    """tail_fraction == VARIANCE_DOMINANT_SHARE (0.60) exactly must be FIX: the comparison
+    is >=. This is CE's literal value (27/45 == 0.60) — not a synthetic edge case."""
+    assert tail_fraction(18.0, 45.0) == pytest.approx(0.60)
+    assert decide(promised_days=32.0, median_days=18.0, p95_days=45.0) == Verdict.FIX
 
 
 # --- FIX 4: robustness reporting -------------------------------------------------------
