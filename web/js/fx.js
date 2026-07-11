@@ -169,36 +169,55 @@ export function initGlassGlow(root = document) {
   });
 }
 
-// ── receipts: provenance popover on any [data-receipt] ───────────
+// ── receipts: provenance popover, opened from the ⌕ sql chip only ─
 export function initReceipts(receipts) {
   const pop = $("receipt-pop");
   const q = $("rp-q");
   const sql = $("rp-sql");
-  let hideTimer;
+  let showTimer;
 
-  const show = (el, e) => {
-    const slug = el.dataset.receipt;
+  const show = (slug, anchor) => {
     const rec = receipts[slug];
     if (!rec) return;
     q.textContent = `“${rec.nl_question}”`;
     sql.textContent = rec.sql.trim();
     pop.hidden = false;
+    const r = anchor.getBoundingClientRect();
     const pw = Math.min(560, innerWidth - 32);
-    let x = Math.min(e.clientX + 16, innerWidth - pw - 16);
-    let y = e.clientY + 18;
-    if (y > innerHeight * 0.5) y = Math.max(16, e.clientY - pop.offsetHeight - 18);
-    pop.style.left = `${Math.max(16, x)}px`;
+    const x = Math.max(16, Math.min(r.right - pw, innerWidth - pw - 16));
+    let y = r.bottom + 10;
+    if (y + pop.offsetHeight > innerHeight - 16) y = Math.max(16, r.top - pop.offsetHeight - 10);
+    pop.style.left = `${x}px`;
     pop.style.top = `${y}px`;
+  };
+  const hide = () => {
+    clearTimeout(showTimer);
+    pop.hidden = true;
   };
 
   document.querySelectorAll("[data-receipt]").forEach((el) => {
-    el.addEventListener("pointerenter", (e) => {
-      clearTimeout(hideTimer);
-      hideTimer = setTimeout(() => show(el, e), 550);
+    const slug = el.dataset.receipt;
+    if (!receipts[slug]) return;
+
+    // small elements (badges) stay whole-element triggers; cards get a chip
+    let trigger;
+    if (el.classList.contains("verified-badge")) {
+      trigger = el;
+    } else {
+      trigger = document.createElement("span");
+      trigger.className = "receipt-chip";
+      trigger.textContent = "⌕ sql";
+      el.appendChild(trigger);
+    }
+    trigger.addEventListener("pointerenter", () => {
+      clearTimeout(showTimer);
+      showTimer = setTimeout(() => show(slug, trigger), 150);
     });
-    el.addEventListener("pointerleave", () => {
-      clearTimeout(hideTimer);
-      pop.hidden = true;
+    trigger.addEventListener("pointerleave", hide);
+    trigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      pop.hidden ? show(slug, trigger) : hide();
     });
   });
+  addEventListener("scroll", hide, { passive: true });
 }

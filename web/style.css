@@ -118,25 +118,27 @@ body::after {
 }
 
 /* ── receipts: every number carries provenance ──────────────────── */
-[data-receipt] { cursor: help; }
-[data-receipt]::after {
-  content: "⌕ sql";
+.receipt-chip {
   position: absolute;
   top: 8px;
   right: 10px;
+  z-index: 2;
   font: 500 10px/1 var(--mono);
   letter-spacing: 0.08em;
   color: var(--faint);
   border: 1px solid var(--line);
   border-radius: 99px;
-  padding: 3px 7px;
-  opacity: 0;
-  transition: opacity 200ms var(--ease-out), color 200ms var(--ease-out);
-  pointer-events: none;
+  padding: 4px 8px;
+  background: oklch(0.16 0.02 225 / 0.7);
+  opacity: 0.4;
+  cursor: help;
+  transition: opacity 200ms var(--ease-out), color 200ms var(--ease-out), border-color 200ms;
 }
 @media (hover: hover) and (pointer: fine) {
-  [data-receipt]:hover::after { opacity: 1; color: var(--phosphor); }
+  [data-receipt]:hover .receipt-chip { opacity: 1; }
+  .receipt-chip:hover { color: var(--phosphor); border-color: oklch(0.86 0.21 152 / 0.45); }
 }
+.verified-badge { cursor: help; }
 
 .receipt-pop {
   position: fixed;
