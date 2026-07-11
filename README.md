@@ -1,88 +1,69 @@
-# Enterprise Agents Hackathon
+# Hackathon info — July 11, 2026 (NYC)
 
-Organizer/sponsor research and setup info for the **Enterprise Agents Hackathon**
-(Devpost, hosted by Emergence, judged by Emergence + Nebius engineers).
+Organizer/sponsor research and setup info. Two same-day events are tracked here;
+**the active target is the AI Healthcare Hack NYC** (confirmed by Advik, Jul 11).
 
-- Devpost: https://ai-healthcare-hack.devpost.com/ (URL slug is misleading — this is the Emergence/Nebius Enterprise Agents Hackathon, NOT a healthcare hack)
-- Location: NYC, in-person, one day
-- Deadline: **Jul 11, 2026 @ 5:00pm EDT**
-- Luma (RSVP/signup): https://luma.com/f5smb6kp?tk=MMAqbM
-- NDA form: https://scanned.page/6tITpm
-- Hackathon homepage: https://www.emergence.ai/hackathon#start
-- Devpost project/submission page: https://devpost.com/software/1324730/joins/nIJRd1dC-_fWlac8dwWRVA
-- Reference repo (organizer-provided starter): https://github.com/EmergenceAI/nebius-emergence-hackathon
-- Reference repo (Claude/Codex ↔ Nebius proxy): https://github.com/opencolin/claude-codex-nebius-proxy
-- To-dos: sign up for Emergence Discord, sign up for Nebius Builder Program
-- Questions: email the hackathon manager (via Devpost page)
+---
 
-## Theme
+## 🎯 ACTIVE: AI Healthcare Hack NYC — Arya Health & Twilio AI Startup Searchlight
 
-"You don't query data. You investigate it." Build agentic data-intelligence
-applications on **Emergence AI's CRAFT platform**, powered by **Nebius Token
-Factory** GPU inference. CRAFT handles schema navigation, business-term
-resolution, and SQL generation over MCP so the day is spent on hypothesis
-formation and delivering an actionable insight, not writing queries.
+Full capture: [`luma-ai-healthcare-hack-nyc.md`](./luma-ai-healthcare-hack-nyc.md)
 
-Format: morning workshops → afternoon open building → room judging over
-dinner → finalist demos on main stage → winners announced by 7pm.
+- Devpost: https://ai-healthcare-hack.devpost.com/
+- Deadline: **Jul 11, 2026 @ 3:30pm EDT** · Judging/demos 4:00–5:00pm
+- Location: 307 W 36th St, floor 13 (Arya Health office)
+- Challenge: production-ready **voice/text conversational AI agent** that carries a
+  full healthcare workflow end-to-end (intake, scheduling, reminders, insurance
+  verification, caregiver follow-up) — grounded in domain knowledge, personalized
+  to the caller. Reliability/guardrails/security are the bar, not extras.
+- **Must use Twilio telephony to qualify for sponsor prizes.**
+- Sponsors: **Twilio** (AI Startup Searchlight), **Lovable**, **Arya Health**
+- Judging: Technical implementation · Idea uniqueness · Team explanation · UI/UX (1–5 each)
+- Judges: Anand Chandrasekaran (Arya), Nikki Hu (Arya), Twilio
+- Prizes: $500/$300/$200 Twilio credits + Arya Health engineering interviews
 
-## Sponsors
+### Chosen stack (decided)
 
-- **Emergence** — CRAFT platform (agentic data-intelligence over MCP)
-- **Nebius** — Token Factory GPU inference (OpenAI-compatible endpoint)
+- **Twilio** — telephony (required). Promo code `arya-hack` (see luma file for redemption steps)
+- **ElevenLabs** — voice/TTS (not a sponsor, but best-in-class and pairs natively with
+  Twilio ConversationRelay and via ElevenLabs Agents' Twilio integration)
+- **Arya Health** — no public developer API found (aryahealth.ai is post-acute/home-health
+  digital agents; the "arya.ai" APIs online are a different company). Their contribution is
+  venue + hiring-interview prizes. **Strategic angle**: pick the *caregiver follow-up /
+  home-health scheduling* workflow — it's literally Arya's domain, which should land well
+  with the Arya judges.
+- **Lovable** — sponsor credits available (Pro Plan, code `COMM-AI-GAYR`, alt
+  `COMM-HEAL-UYEF`) — use for a quick dashboard/frontend showing transcripts + bookings.
 
-## Tech you'll use
+### Setup checklist
 
-- **CRAFT MCP endpoint** — tool loop: `list_databases` → `get_schema` →
-  `generate_sql` → `execute_query` → `generate_plotly_chart`, plus DX helpers
-  `search_schema`, `explain_error`, `get_hint`. Connect via `craft-sdk` or a
-  direct MCP config — one URL, one API key.
-- **Nebius Token Factory** — OpenAI-compatible endpoint serving
-  **Nemotron-3 Super 120B** (12B active params, 1M context, native function
-  calling), a top open model for agentic tool use.
-- Bring your own agent framework — organizers help connect it to CRAFT's MCP
-  endpoint and point it at Nebius for inference.
-- Data: real enterprise-scale databases from the **Spider 2.0 benchmark**
-  (the same schemas that break most text-to-SQL systems).
+- [ ] Twilio account + voice-capable phone number ([quick start](./luma-ai-healthcare-hack-nyc.md#event-blasts--resources-from-luma-updates-feed))
+- [ ] Redeem Twilio promo `arya-hack`
+- [ ] ElevenLabs account + API key
+- [ ] Redeem Lovable Pro credit
+- [ ] Devpost project page (name, one-liner, what/why, tools incl. Twilio usage, team, demo link)
 
-## The challenges (pick one, or bring your own hypothesis against any provided DB)
+OSS starter-repo research for this event → `advik-bhatt/emergence-hackathon-project`
+(`ai-healthcare-hack-research.md`).
 
-| Domain | What you'll investigate | Level |
-|---|---|---|
-| E-commerce | Diagnose a revenue or conversion anomaly across orders, customers, and catalog | Beginner → Intermediate |
-| Crypto / blockchain | A compliance team suspects a wallet cluster is structuring cross-chain transfers to dodge detection thresholds — find the pattern | Intermediate → Advanced |
-| Biotech / clinical | Test whether imaging modalities correlate with molecular subtypes across cancers; produce publication-quality analysis (no genomics expertise required) | Intermediate → Advanced |
-| Digital analytics | Find where the onboarding funnel loses mobile users vs. web — deeply nested schemas, the hardest SQL pattern in Spider 2.0 | Advanced |
-| Dev infrastructure | Investigate reliability, usage, or cost patterns in engineering/ops data | Intermediate |
+---
 
-## Judging
+## Secondary: Enterprise Agents Hackathon — Emergence × Nebius
 
-Two rounds: first-round breakout-room judging (5-min demo + 5-min Q&A), then
-top finalists present on the main stage.
+Full captures: [`devpost-enterprise-agents-hackathon.md`](./devpost-enterprise-agents-hackathon.md) ·
+[`luma-emergence-x-nebius.md`](./luma-emergence-x-nebius.md) ·
+[`nebius-hackathon-prerequisites.md`](./nebius-hackathon-prerequisites.md) ·
+[`craft_databases.md`](./craft_databases.md) ·
+[`research-starter-repos.md`](./research-starter-repos.md)
 
-- **CRAFT usage depth (30%)** — did you use the semantic layer
-  (`generate_sql`, DX tools), or just raw queries?
-- **Insight quality (30%)** — is the business finding actionable? Would a
-  real analyst care?
-- **Agent architecture (20%)** — is the design interesting? Multi-step
-  reasoning, delegation, error recovery?
-- **Story clarity (20%)** — can we follow what the agent did and why?
+- Deadline: Jul 11, 2026 @ 5:00pm EDT · winners by 7pm
+- Theme: agentic data-intelligence on **Emergence CRAFT** (MCP text-to-SQL semantic layer)
+  + **Nebius Token Factory** inference (Nemotron-3 Super 120B), over Spider 2.0 databases
+- Judging: CRAFT usage depth 30% · Insight quality 30% · Agent architecture 20% · Story clarity 20%
+- Prizes: 1st = 6-month CRAFT access + $5,000 Nebius credits; 2nd/3rd/per-challenge = CRAFT + credits
+- Links: [Luma](https://luma.com/f5smb6kp?tk=MMAqbM) · [NDA](https://scanned.page/6tITpm) ·
+  [homepage](https://www.emergence.ai/hackathon#start) ·
+  [starter repo](https://github.com/EmergenceAI/nebius-emergence-hackathon) ·
+  [Nebius proxy](https://github.com/opencolin/claude-codex-nebius-proxy)
 
-Judges: Colin Lowenberg (Dev Advocate, Nebius), Vishnu Mohan (Product Lead,
-Emergence), Sharad (CPO, Emergence), Abhishek (Lead Engineer, Emergence),
-Bhaskar (Engineering Manager, Emergence).
-
-## Prizes (4 non-cash)
-
-- **1st place**: 6-month CRAFT access + $5,000 Nebius Credits
-- **2nd place**: CRAFT access + Nebius Token Factory credits
-- **3rd place**: CRAFT access + Nebius Token Factory credits
-- **Per-challenge standout** (1 winner): CRAFT access + Nebius Token Factory credits
-
-## Related repo (out of scope, noted for context)
-
-The same Devpost account also has a listing for **AI Healthcare Hack NYC**
-(Arya Health + Twilio AI Startup Searchlight, deadline Jul 11 2026 @ 3:30pm
-EDT, must use Twilio for telephony to qualify for prizes). That is a
-**separate, unrelated hackathon** — not tracked in this repo. Flag to
-@advik-bhatt if both are being entered simultaneously.
+Other files: [`sponsor-env-vars.md`](./sponsor-env-vars.md) (env var setup for sponsor APIs).
