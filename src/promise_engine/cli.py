@@ -23,6 +23,14 @@ FIXTURES_DIR = Path(__file__).resolve().parents[2] / "fixtures"
 VERDICT_STYLE = {"FIX": "bold red", "PAD": "yellow", "OK": "dim green"}
 
 
+STEP_KIND_STYLE = {
+    "probe": "cyan",
+    "trap": "bold red",
+    "refusal": "bold yellow",
+    "resolution": "bold green",
+}
+
+
 def _print_preamble(console: Console, hypotheses) -> None:
     console.rule("[bold]Falsification preamble[/bold]")
     for h in hypotheses:
@@ -35,6 +43,58 @@ def _print_preamble(console: Console, hypotheses) -> None:
         console.print(claim, status)
         console.print(Text(f"  {h['evidence']}", style="dim"))
         console.print()
+
+
+def _print_trap(console: Console, trap: dict) -> None:
+    console.rule("[bold]The Trap[/bold]")
+    console.print(
+        "[dim]If reviews are the only outcome this dataset can measure, what promise "
+        "maximizes them?[/dim]"
+    )
+    console.print()
+
+    curve_by_day = {point["extra_days"]: point for point in trap["curve"]}
+    sample_days = [0, 5, 10, 15, 20, 30]
+
+    table = Table(show_header=True, header_style="bold", pad_edge=False, padding=(0, 1))
+    table.add_column("Extra promise (D days)", justify="right", no_wrap=True)
+    table.add_column("Avg review", justify="right", no_wrap=True)
+    table.add_column("1-star %", justify="right", no_wrap=True)
+    table.add_column("Late %", justify="right", no_wrap=True)
+    for day in sample_days:
+        point = curve_by_day.get(day)
+        if point is None:
+            continue
+        table.add_row(
+            f"+{day}",
+            f"{point['avg_review']:.2f}",
+            f"{point['one_star_rate'] * 100:.1f}%",
+            f"{point['late_rate'] * 100:.1f}%",
+        )
+    console.print(table)
+    console.print(
+        "[dim]Climbing, then flat: every additional day is free, and the data never says "
+        "stop.[/dim]"
+    )
+    console.print()
+
+    console.print(Text("UNBOUNDED", style="bold red on default"), Text(" — the review-"
+        "maximizing promise is +infinity.", style="bold red"))
+    console.print()
+    console.print(Panel(trap["why_we_refuse"], title="[bold]Why we refuse it[/bold]",
+                         border_style="yellow"))
+    console.print(f"[dim]{trap['caveat']}[/dim]")
+    console.print()
+
+
+def _print_trace(console: Console, steps) -> None:
+    console.rule("[bold]Reasoning trace[/bold]")
+    for i, step in enumerate(steps, start=1):
+        style = STEP_KIND_STYLE.get(step["kind"], "")
+        tag = Text(f" {step['kind'].upper()} ", style=f"bold reverse {style}".strip())
+        console.print(f"[dim]{i}.[/dim]", tag, Text(f" {step['tool']}", style="dim"))
+        console.print(f"   {step['finding']}")
+    console.print()
 
 
 def _print_queue(console: Console, lanes) -> None:
@@ -100,6 +160,10 @@ def main() -> None:
     investigation = run_investigation(cassette)
 
     _print_preamble(console, investigation.hypotheses)
+    _print_trap(console, investigation.trap)
+    _print_trace(console, [
+        {"tool": s.tool, "kind": s.kind, "finding": s.finding} for s in investigation.steps
+    ])
     _print_queue(console, investigation.lanes)
     _print_rio_callout(console, investigation.lanes)
 

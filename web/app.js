@@ -184,6 +184,88 @@
 
   // ---------------- ops tab ----------------
 
+  const STEP_DELAY_MS = 600;
+
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  async function renderStepsSequentially(steps) {
+    const list = $("trace-list");
+    list.innerHTML = "";
+    for (const step of steps) {
+      const row = document.createElement("div");
+      row.className = "trace-step trace-step-entering";
+      row.innerHTML = `
+        <span class="trace-kind trace-kind-${step.kind}">${step.kind}</span>
+        <span class="trace-tool">${step.tool}</span>
+        <p class="trace-finding">${step.finding}</p>
+      `;
+      list.appendChild(row);
+      // Force a reflow so the entering class's transition actually plays, then settle it.
+      void row.offsetWidth;
+      row.classList.remove("trace-step-entering");
+      await sleep(STEP_DELAY_MS);
+    }
+  }
+
+  function renderTrapChart(curve) {
+    const svg = $("trap-chart");
+    const width = 480;
+    const height = 220;
+    const padding = { top: 16, right: 16, bottom: 28, left: 40 };
+    const plotW = width - padding.left - padding.right;
+    const plotH = height - padding.top - padding.bottom;
+
+    const xs = curve.map((p) => p.extra_days);
+    const ys = curve.map((p) => p.avg_review);
+    const xMin = Math.min(...xs);
+    const xMax = Math.max(...xs);
+    const yMin = Math.min(...ys) - 0.03;
+    const yMax = Math.max(...ys) + 0.03;
+
+    const xScale = (x) => padding.left + ((x - xMin) / (xMax - xMin)) * plotW;
+    const yScale = (y) => padding.top + (1 - (y - yMin) / (yMax - yMin)) * plotH;
+
+    const linePath = curve
+      .map((p, i) => `${i === 0 ? "M" : "L"}${xScale(p.extra_days).toFixed(1)},${yScale(p.avg_review).toFixed(1)}`)
+      .join(" ");
+
+    const areaPath =
+      `${linePath} L${xScale(xMax).toFixed(1)},${(padding.top + plotH).toFixed(1)} ` +
+      `L${xScale(xMin).toFixed(1)},${(padding.top + plotH).toFixed(1)} Z`;
+
+    const gridLines = [0, 0.25, 0.5, 0.75, 1].map((t) => {
+      const y = padding.top + t * plotH;
+      return `<line x1="${padding.left}" y1="${y.toFixed(1)}" x2="${width - padding.right}" y2="${y.toFixed(1)}" class="trap-gridline" />`;
+    }).join("");
+
+    const xTickDays = [0, 5, 10, 15, 20, 25, 30].filter((d) => d <= xMax);
+    const xTicks = xTickDays.map((d) => {
+      const x = xScale(d);
+      return `<text x="${x.toFixed(1)}" y="${height - 8}" class="trap-axis-label" text-anchor="middle">+${d}</text>`;
+    }).join("");
+
+    const yTicks = [yMin, (yMin + yMax) / 2, yMax].map((v) => {
+      const y = yScale(v);
+      return `<text x="${padding.left - 6}" y="${(y + 3).toFixed(1)}" class="trap-axis-label" text-anchor="end">${v.toFixed(2)}</text>`;
+    }).join("");
+
+    const last = curve[curve.length - 1];
+    const dotX = xScale(last.extra_days);
+    const dotY = yScale(last.avg_review);
+
+    svg.innerHTML = `
+      ${gridLines}
+      <path d="${areaPath}" class="trap-area" />
+      <path d="${linePath}" class="trap-line" />
+      <circle cx="${dotX.toFixed(1)}" cy="${dotY.toFixed(1)}" r="4" class="trap-dot" />
+      ${xTicks}
+      ${yTicks}
+      <text x="${width / 2}" y="${height - 8}" class="trap-axis-title" text-anchor="middle" dy="14">extra promise days (D)</text>
+    `;
+  }
+
   async function loadInvestigation() {
     const data = await getJSON("/investigation");
     const grid = $("hypothesis-grid");
@@ -202,6 +284,20 @@
     if (data.narrative) {
       $("narrative-card").hidden = false;
       $("narrative-text").textContent = data.narrative;
+    }
+
+    if (data.trap) {
+      renderTrapChart(data.trap.curve);
+      $("trap-caption").textContent =
+        `Avg review climbs from ${fmt(data.trap.baseline_avg_review, 2)} to ` +
+        `${fmt(data.trap.best_avg_review, 2)}/5 and flattens — the late rate falls to zero ` +
+        `and nothing in the data ever says stop.`;
+      $("trap-refusal-text").textContent = data.trap.why_we_refuse;
+      $("trap-caveat-text").textContent = data.trap.caveat;
+    }
+
+    if (data.steps && data.steps.length) {
+      renderStepsSequentially(data.steps);
     }
   }
 

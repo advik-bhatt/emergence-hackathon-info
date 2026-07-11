@@ -409,6 +409,188 @@ h1 {
   border-color: var(--pad-border);
 }
 
+/* ---------- ops tab: live investigation trace ---------- */
+
+.trace-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.trace-step {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.trace-step-entering {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.trace-kind {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.trace-kind-probe { background: var(--pad); }
+.trace-kind-trap { background: var(--fix); }
+.trace-kind-refusal { background: var(--seg-season); color: #201d18; }
+.trace-kind-resolution { background: var(--ok); }
+
+.trace-tool {
+  font-size: 11.5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.trace-finding {
+  grid-column: 1 / -1;
+  margin: 2px 0 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+@media (min-width: 640px) {
+  .trace-finding {
+    grid-column: 3;
+    margin: 0;
+  }
+}
+
+/* ---------- ops tab: the trap card ---------- */
+
+.trap-card {
+  border-color: var(--fix-border);
+}
+
+.trap-body {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 22px;
+  align-items: center;
+}
+
+@media (max-width: 760px) {
+  .trap-body { grid-template-columns: 1fr; }
+}
+
+.trap-chart-wrap {
+  width: 100%;
+}
+
+#trap-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.trap-gridline {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.trap-area {
+  fill: var(--fix-soft);
+  opacity: 0.6;
+}
+
+.trap-line {
+  fill: none;
+  stroke: var(--fix);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.trap-dot {
+  fill: var(--fix);
+  stroke: var(--bg-elevated);
+  stroke-width: 2;
+}
+
+.trap-axis-label {
+  fill: var(--text-muted);
+  font-size: 9.5px;
+}
+
+.trap-axis-title {
+  fill: var(--text-muted);
+  font-size: 9.5px;
+  font-weight: 600;
+}
+
+.trap-verdict {
+  text-align: center;
+  padding: 10px;
+}
+
+.trap-infinity {
+  font-size: 56px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--fix);
+  letter-spacing: -0.02em;
+}
+
+.trap-unbounded {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--fix);
+  margin-top: 6px;
+}
+
+.trap-caption {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.trap-refusal {
+  margin-top: 20px;
+  border: 1px solid var(--pad-border);
+  background: var(--pad-soft);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.trap-refusal h3 {
+  margin: 0 0 6px;
+  font-size: 13.5px;
+  color: var(--pad);
+}
+
+.trap-refusal p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.trap-caveat {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
 /* ---------- ops tab: hypotheses ---------- */
 
 .hypothesis-grid {

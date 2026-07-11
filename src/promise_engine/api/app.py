@@ -68,6 +68,11 @@ def get_investigation() -> dict[str, Any]:
     return {
         "hypotheses": INVESTIGATION.hypotheses,
         "narrative": INVESTIGATION.narrative,
+        "steps": [
+            {"tool": step.tool, "kind": step.kind, "finding": step.finding}
+            for step in INVESTIGATION.steps
+        ],
+        "trap": INVESTIGATION.trap,
     }
 
 

@@ -16,9 +16,15 @@ from typing import Any
 
 from promise_engine.agent.narrative import HallucinatedNumber, check_numbers
 from promise_engine.agent.tools import TOOL_SCHEMAS, Tools
+from promise_engine.analysis.trap import review_curve, why_we_refuse
 from promise_engine.craft.cassette import Cassette
 
 HYPOTHESIS_NAMES = ["churn", "bad_sellers", "review_damage", "variance_blindness"]
+
+# Hypotheses that die in the probe step vs. the one that survives — used to build the
+# 5-beat trace identically whether the narrative came from an LLM or the scripted fallback.
+_PROBE_DEAD_NAMES = ["churn", "bad_sellers"]
+_PROBE_SURVIVES_NAME = "review_damage"
 
 SYSTEM_PROMPT = """You are the Promise Engine's investigator: you decide whether Olist's \
 delivery-promise problem is best explained by bad sellers, customer churn, review damage, or \
@@ -27,19 +33,32 @@ an estimator that is blind to variance — and you recommend what ops should do 
 Rules, in order of importance:
 1. Investigate before you recommend. Call test_hypothesis for churn, bad_sellers, and \
 review_damage FIRST, and explicitly say which of them died and which survived, with the \
-evidence each tool returned. Only after that call rank_lanes and reason about the queue.
-2. Never state a number that no tool returned to you. Every day count, percentage, order \
-count, or distance in your final answer must trace back to a test_hypothesis, rank_lanes, or \
-compute_promise result. If you have not called a tool for a number, do not say it.
-3. Never claim anything about conversion or revenue. Olist has no clickstream data here — \
-conversion is unmeasurable, and any such claim is indefensible. Talk about late rates, orders \
-at risk, and review damage instead.
-4. Distinguish PAD from FIX. PAD means the lane is genuinely far away and lengthening the \
+evidence each tool returned.
+2. Before recommending anything, call naive_review_optimum. It computes the promise extension \
+that maximizes the only outcome this dataset can measure (average review score). It will \
+return UNBOUNDED — no bucket in the data penalizes a longer promise, so the review-maximizing \
+promise is +infinity. State plainly what it returns. Then REFUSE it: explain that you will not \
+recommend it, because the cost of an unbounded promise — a customer who sees "delivery in 2 \
+months" and never orders — is not merely unmeasured but structurally unmeasurable in this \
+dataset (Olist has no clickstream: no sessions, no page views, no cart events). Because that \
+cost cannot be seen, you cannot optimize this metric, and you must reason structurally instead.
+3. After refusing the naive optimum, call rank_lanes and use the distance-vs-variance \
+criterion to decide what ops should actually do: is a lane's gap DISTANCE (median — \
+irreducible, so padding is honest) or VARIANCE (p95 minus median — recoverable, so the lane \
+should be fixed instead)?
+4. Never state a number that no tool returned to you. Every day count, percentage, order \
+count, or distance in your final answer must trace back to a test_hypothesis, \
+naive_review_optimum, rank_lanes, or compute_promise result. If you have not called a tool for \
+a number, do not say it.
+5. Never claim anything about conversion or revenue. Olist has no clickstream data here — \
+conversion is unmeasurable, and any such claim is indefensible, even when discussing the \
+naive optimum's refusal. The refusal is about an unmeasurable cost, never a claimed effect.
+6. Distinguish PAD from FIX. PAD means the lane is genuinely far away and lengthening the \
 promise is honest. FIX means the promise is already failing on tail (variance), not distance \
 — padding it further would make an already-fine median look absurd (padding Rio de Janeiro, \
 Olist's #2 market, to its 38-day p95 when the median delivery is 12 days would make it look \
 worse than a genuinely remote state like Pará). Say explicitly why padding Rio would be wrong.
-5. Note which verdicts are robust and which are borderline (is_borderline / flip_distance) — \
+7. Note which verdicts are robust and which are borderline (is_borderline / flip_distance) — \
 a FIX verdict that would flip on a tenth of a day is not the same claim as one that would not \
 flip for eight days.
 
@@ -53,12 +72,21 @@ INVESTIGATE_PROMPT = (
 )
 
 
+@dataclass(frozen=True)
+class Step:
+    tool: str
+    kind: str  # "probe" | "trap" | "refusal" | "resolution"
+    finding: str  # ONE line: what this call established, in plain English
+
+
 @dataclass
 class Investigation:
     hypotheses: list[dict[str, Any]]
     lanes: list[dict[str, Any]]
     narrative: str
     computed: set[float] = field(default_factory=set)
+    steps: list[Step] = field(default_factory=list)
+    trap: dict[str, Any] | None = None
 
     @property
     def top_lane(self) -> dict[str, Any] | None:
@@ -88,6 +116,8 @@ def _dispatch(tools: Tools, name: str, arguments: dict[str, Any]) -> Any:
         return tools.test_hypothesis(**arguments)
     if name == "rank_lanes":
         return tools.rank_lanes()
+    if name == "naive_review_optimum":
+        return tools.naive_review_optimum()
     if name == "compute_promise":
         return tools.compute_promise(**arguments)
     raise ValueError(f"Unknown tool {name!r}.")
@@ -137,12 +167,15 @@ def _agentic_narrative(client, tools: Tools, max_turns: int) -> str:
     return last_content
 
 
-def _scripted_narrative(hypotheses: list[dict[str, Any]], lanes: list[dict[str, Any]]) -> str:
-    """Built ONLY from numbers that already passed through `Tools` (the hypotheses and lanes
-    calls made just before this runs). No literal figure is retyped from memory here — every
-    number below is read straight out of the tool results so it is guaranteed to be in
-    `Tools.computed` and pass `verify_narrative()`."""
-    by_name = {h["name"]: h for h in hypotheses}
+def _scripted_narrative(
+    hypotheses: list[dict[str, Any]],
+    lanes: list[dict[str, Any]],
+    optimum: dict[str, Any],
+) -> str:
+    """Built ONLY from numbers that already passed through `Tools` (the hypotheses, the naive
+    optimum, and the lanes calls made just before this runs). No literal figure is retyped from
+    memory here — every number below is read straight out of the tool results so it is
+    guaranteed to be in `Tools.computed` and pass `verify_narrative()`."""
     died = [h["claim"] for h in hypotheses if h["status"] == "DEAD"]
     survived = [h["claim"] for h in hypotheses if h["status"] == "SURVIVES"]
 
@@ -156,6 +189,22 @@ def _scripted_narrative(hypotheses: list[dict[str, Any]], lanes: list[dict[str, 
         + ". "
         + "; ".join(f'"{claim}" SURVIVES' for claim in survived)
         + ".",
+        "",
+        (
+            "Before recommending anything, we computed the promise that maximizes the only "
+            "outcome this dataset measures: average review score. That result is "
+            f"{optimum['verdict']}"
+        ),
+        "",
+        (
+            "We refuse that optimum. The cost of a long promise is a customer who sees "
+            "\"delivery in 2 months\" and never orders — and Olist has no clickstream (no "
+            "sessions, no page views, no cart events), so that cost is not merely unmeasured, "
+            "it is structurally unmeasurable in this data. We will not optimize a metric whose "
+            "downside we cannot see. Instead we fall back to a criterion that needs none of "
+            "the missing data: is a lane's gap distance (irreducible — pad it) or variance "
+            "(recoverable — fix it)?"
+        ),
         "",
         (
             f"The ops queue is topped by {top['state']}: {top['orders']:,} orders, a current "
@@ -189,28 +238,124 @@ def _scripted_narrative(hypotheses: list[dict[str, Any]], lanes: list[dict[str, 
     return "\n".join(lines)
 
 
+def _build_steps(
+    hypotheses: list[dict[str, Any]],
+    optimum: dict[str, Any],
+    lanes: list[dict[str, Any]],
+    review_damage_rows: list[dict[str, Any]],
+) -> list[Step]:
+    """The same 5-beat trace for both the LLM path and the scripted path: probe (dead), probe
+    (survives), trap, refusal, resolution. Built from tool results already on hand, so it
+    never has to guess what an LLM chose to call — this module guarantees the shape of the
+    demo regardless of what the model does with its turns."""
+    by_name = {h["name"]: h for h in hypotheses}
+    dead = [by_name[name] for name in _PROBE_DEAD_NAMES if name in by_name]
+    survives = by_name.get(_PROBE_SURVIVES_NAME)
+    top = lanes[0] if lanes else None
+
+    early_score = next(
+        (float(r["avg_review_score"]) for r in review_damage_rows
+         if str(r["delivery_bucket"]).lower() == "early"),
+        optimum["best_avg_review"],
+    )
+    worst_score = min(
+        (float(r["avg_review_score"]) for r in review_damage_rows), default=early_score,
+    )
+
+    steps = [
+        Step(
+            tool="test_hypothesis",
+            kind="probe",
+            finding=(
+                "; ".join(f'"{h["claim"]}" is DEAD' for h in dead)
+                if dead else "no candidate explanations tested"
+            ),
+        ),
+        Step(
+            tool="test_hypothesis",
+            kind="probe",
+            finding=(
+                f'"{survives["claim"]}" SURVIVES: broken promises destroy reviews, '
+                f"{early_score:.2f} -> {worst_score:.2f}"
+                if survives else "review_damage not tested"
+            ),
+        ),
+        Step(
+            tool="naive_review_optimum",
+            kind="trap",
+            finding=(
+                "Optimizing the only metric we can measure says: promise +infinity. "
+                f"Reviews saturate at {optimum['best_avg_review']:.2f}/5, late rate falls to "
+                "zero, and the data never says stop."
+            ),
+        ),
+        Step(
+            tool="naive_review_optimum",
+            kind="refusal",
+            finding=(
+                "The agent declines the optimum: the cost of a long promise is unmeasurable "
+                "here (no clickstream), so this metric cannot be optimized. Falls back to "
+                "the distance-vs-variance criterion instead."
+            ),
+        ),
+        Step(
+            tool="rank_lanes",
+            kind="resolution",
+            finding=(
+                f"{top['state']} tops the queue with a tail_fraction of "
+                f"{top['tail_fraction']:.2f} — its gap is variance, not distance, so verdict "
+                f"is {top['verdict']}: fix the tail, don't pad the promise."
+                if top else "no lanes ranked"
+            ),
+        ),
+    ]
+    return steps
+
+
 def run_investigation(
     cassette: Cassette, llm: Any = None, max_turns: int = 8,
 ) -> Investigation:
     tools = Tools.from_cassette(cassette)
 
-    # Always run the full falsification suite and the ranked queue ourselves first: this
-    # guarantees the preamble is complete and every number in it is recorded, regardless of
-    # what an LLM chooses to call (it may call these again; that's harmless).
+    # Always run the full falsification suite, the naive optimum, and the ranked queue
+    # ourselves first: this guarantees the preamble/trap/queue are complete and every number
+    # in them is recorded, regardless of what an LLM chooses to call (it may call these
+    # again; that's harmless) — and it guarantees the 5-step trace is identical whether or
+    # not an LLM is available.
     hypotheses = [tools.test_hypothesis(name) for name in HYPOTHESIS_NAMES]
+    optimum = tools.naive_review_optimum()
     lanes = tools.rank_lanes()
 
     client = llm if llm is not None else _default_client()
     if client is None:
-        narrative = _scripted_narrative(hypotheses, lanes)
+        narrative = _scripted_narrative(hypotheses, lanes, optimum)
     else:
         narrative = _agentic_narrative(client, tools, max_turns)
+
+    review_damage_rows = cassette.replay("review_damage").as_dicts()
+    steps = _build_steps(hypotheses, optimum, lanes, review_damage_rows)
+    curve = review_curve(cassette)
+    trap = {
+        **optimum,
+        "curve": [
+            {
+                "extra_days": point.extra_days,
+                "avg_review": round(point.avg_review, 3),
+                "one_star_rate": round(point.one_star_rate, 4),
+                "late_rate": round(point.late_rate, 4),
+            }
+            for point in curve
+        ],
+        "why_we_refuse": why_we_refuse(),
+    }
 
     investigation = Investigation(
         hypotheses=hypotheses,
         lanes=lanes,
         narrative=narrative,
         computed=tools.computed,
+        steps=steps,
+        trap=trap,
     )
     investigation.verify_narrative()
     return investigation

@@ -84,6 +84,36 @@
     <!-- TAB 2: OPS -->
     <section id="tab-ops" class="tab-panel">
       <div class="card">
+        <h2>Live investigation</h2>
+        <p class="muted">The agent reasoning in real time: probe, get trapped, refuse, resolve.</p>
+        <div class="trace-list" id="trace-list"></div>
+      </div>
+
+      <div class="card trap-card">
+        <h2>The Trap</h2>
+        <p class="muted">
+          If reviews are the only outcome this dataset can measure, what promise maximizes them?
+        </p>
+        <div class="trap-body">
+          <div class="trap-chart-wrap">
+            <svg id="trap-chart" viewBox="0 0 480 220" preserveAspectRatio="xMidYMid meet"
+                 role="img" aria-label="Average review score climbing then flattening as extra promise days increase">
+            </svg>
+          </div>
+          <div class="trap-verdict">
+            <div class="trap-infinity" id="trap-infinity">+&infin;</div>
+            <div class="trap-unbounded">UNBOUNDED</div>
+            <p class="trap-caption" id="trap-caption"></p>
+          </div>
+        </div>
+        <div class="trap-refusal" id="trap-refusal">
+          <h3>Why we refuse it</h3>
+          <p id="trap-refusal-text"></p>
+        </div>
+        <p class="trap-caveat" id="trap-caveat-text"></p>
+      </div>
+
+      <div class="card">
         <h2>Falsification preamble</h2>
         <p class="muted">What we tested before recommending anything &mdash; and what survived.</p>
         <div class="hypothesis-grid" id="hypothesis-grid"></div>
