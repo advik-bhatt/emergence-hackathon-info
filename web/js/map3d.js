@@ -211,7 +211,7 @@ export async function initMap({ container, lanes, onSelect }) {
       ["median actual", `${fmt(lane.median_days, 1)}d`],
       ["p95 actual", `${fmt(lane.p95_days, 1)}d`],
       ["late rate", `${fmt(lane.late_rate, 1)}%`],
-      ["orders at risk", fmt(lane.orders_at_risk)],
+      ["order-days at risk", fmt(lane.orders_at_risk)],
     ];
     rows.forEach(([k, v]) => {
       const div = document.createElement("div");

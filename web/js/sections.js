@@ -315,7 +315,7 @@ export function initQueue(lanes) {
     const riskN = document.createElement("span");
     riskN.textContent = "0";
     const riskL = document.createElement("small");
-    riskL.textContent = "orders at risk";
+    riskL.textContent = "order-days at risk";
     risk.append(riskN, riskL);
     li.appendChild(risk);
 
