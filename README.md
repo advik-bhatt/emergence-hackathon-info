@@ -55,7 +55,8 @@ Full captures: [`devpost-enterprise-agents-hackathon.md`](./devpost-enterprise-a
 [`nebius-hackathon-prerequisites.md`](./nebius-hackathon-prerequisites.md) ·
 [`craft_databases.md`](./craft_databases.md) ·
 [`research-starter-repos.md`](./research-starter-repos.md) ·
-[`project-ideas.md`](./project-ideas.md)
+[`project-ideas.md`](./project-ideas.md) ·
+[`SESSION-SUMMARY.md`](./SESSION-SUMMARY.md)
 
 - Deadline: Jul 11, 2026 @ 5:00pm EDT · winners by 7pm
 - Theme: agentic data-intelligence on **Emergence CRAFT** (MCP text-to-SQL semantic layer)
