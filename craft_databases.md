@@ -70,6 +70,28 @@ just a benchmark. (See `project-ideas.md` → Delivery Promise Optimizer.)
 
 **Good for:** late-delivery → bad-review causation, seller quality scoring, logistics by region, payment behavior. The reference "Seller Delivery Intelligence Agent" used this.
 
+### ⚠️ Two verified dead ends — do not build on these
+
+- **Churn / retention is unanalysable.** Repeat rate is **3.12%** (2,997 of 96,096 customers),
+  and it is *flat across review scores*: customers whose first order got **1 star repeat at
+  3.26%**, those who gave **5 stars repeat at 3.17%**. A ruined delivery has **zero** effect on
+  whether someone returns. The hackathon guide's suggested prompt for this lane is *"a
+  customer-insights agent investigating churn hypotheses"* — **that is a trap.** There is no
+  churn signal here, and `thelook` (the other half of the pairing) is synthetic. Both sides of
+  the printed prompt are dead.
+- **There is no clickstream.** No sessions, no page views, no cart events. Anything about
+  *conversion* or *browsing behaviour* is **unmeasurable** in Olist. (If you need clickstream,
+  that's `ga4` / `firebase` / `thelook.EVENTS`.)
+
+### ✅ What IS there: the concentration story
+
+Late deliveries are extraordinarily concentrated. Of 2,970 sellers and 8,714 late items:
+**the worst 30 sellers (top 1%) cause 29.6% of ALL late items**; the top 5% cause 57.8%.
+
+Combine that with the padding (88,653 early vs 1,291 on time) and you get the real finding:
+**Olist pads delivery promises on every order to absorb the failures of 1% of its sellers.**
+See `project-ideas.md` → The Padding Paradox.
+
 **Note:** you almost always need the translation table to make output readable.
 
 ---
