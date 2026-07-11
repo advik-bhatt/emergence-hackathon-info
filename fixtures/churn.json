@@ -1,0 +1,43 @@
+{
+  "slug": "churn",
+  "nl_question": "Using OLIST_CUSTOMERS.customer_unique_id as the true person, for customers whose FIRST order received a given review score (1 to 5), show the review score, the number of such customers, and the percentage who went on to place another order. Also include the overall repeat purchase rate across all customers.",
+  "sql": "WITH customer_orders AS (SELECT c.\"customer_unique_id\", o.\"order_id\", o.\"order_purchase_timestamp\", ROW_NUMBER() OVER (PARTITION BY c.\"customer_unique_id\" ORDER BY o.\"order_purchase_timestamp\" ASC, o.\"order_id\" ASC) AS order_seq, COUNT(*) OVER (PARTITION BY c.\"customer_unique_id\") AS total_orders FROM BRAZILIAN_E_COMMERCE.BRAZILIAN_E_COMMERCE.OLIST_CUSTOMERS c JOIN BRAZILIAN_E_COMMERCE.BRAZILIAN_E_COMMERCE.OLIST_ORDERS o ON c.\"customer_id\" = o.\"customer_id\"), first_order_with_review AS (SELECT co.\"customer_unique_id\", co.total_orders, r.\"review_score\" FROM customer_orders co JOIN BRAZILIAN_E_COMMERCE.BRAZILIAN_E_COMMERCE.OLIST_ORDER_REVIEWS r ON co.\"order_id\" = r.\"order_id\" WHERE co.order_seq = 1 QUALIFY ROW_NUMBER() OVER (PARTITION BY co.\"customer_unique_id\" ORDER BY r.\"review_creation_date\" DESC, r.\"review_id\" ASC) = 1), by_score AS (SELECT CAST(\"review_score\" AS VARCHAR) AS FIRST_ORDER_REVIEW_SCORE, COUNT(*) AS NUM_CUSTOMERS, ROUND(100.0 * SUM(CASE WHEN total_orders > 1 THEN 1 ELSE 0 END) / COUNT(*), 2) AS REPEAT_PURCHASE_RATE_PCT FROM first_order_with_review GROUP BY \"review_score\"), overall AS (SELECT 'Overall' AS FIRST_ORDER_REVIEW_SCORE, COUNT(*) AS NUM_CUSTOMERS, ROUND(100.0 * SUM(CASE WHEN total_orders > 1 THEN 1 ELSE 0 END) / COUNT(*), 2) AS REPEAT_PURCHASE_RATE_PCT FROM customer_orders WHERE order_seq = 1) SELECT * FROM by_score UNION ALL SELECT * FROM overall ORDER BY FIRST_ORDER_REVIEW_SCORE",
+  "columns": [
+    "FIRST_ORDER_REVIEW_SCORE",
+    "NUM_CUSTOMERS",
+    "REPEAT_PURCHASE_RATE_PCT"
+  ],
+  "rows": [
+    [
+      "1",
+      10998,
+      3.16
+    ],
+    [
+      "2",
+      3030,
+      2.81
+    ],
+    [
+      "3",
+      7861,
+      3.07
+    ],
+    [
+      "4",
+      18495,
+      2.84
+    ],
+    [
+      "5",
+      54976,
+      3.22
+    ],
+    [
+      "Overall",
+      96096,
+      3.12
+    ]
+  ],
+  "recorded_at": "2026-07-11T00:00:00Z"
+}

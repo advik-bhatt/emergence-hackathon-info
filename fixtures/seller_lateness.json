@@ -1,0 +1,20 @@
+{
+  "slug": "seller_lateness",
+  "nl_question": "Consider only sellers with at least 50 delivered items. Compute the overall baseline late rate across all their items, the highest late rate achieved by any single seller, the number of sellers whose late rate exceeds 40 percent, and separately the combined late rate of the 30 sellers who have the largest number of late items. Return this as a single row.",
+  "sql": "WITH seller_stats AS (SELECT oi.\"seller_id\", COUNT(*) AS total_items, SUM(CASE WHEN o.\"order_delivered_customer_date\" > o.\"order_estimated_delivery_date\" THEN 1 ELSE 0 END) AS late_items FROM \"BRAZILIAN_E_COMMERCE\".\"BRAZILIAN_E_COMMERCE\".\"OLIST_ORDER_ITEMS\" oi JOIN \"BRAZILIAN_E_COMMERCE\".\"BRAZILIAN_E_COMMERCE\".\"OLIST_ORDERS\" o ON oi.\"order_id\" = o.\"order_id\" WHERE o.\"order_status\" = 'delivered' GROUP BY oi.\"seller_id\" HAVING COUNT(*) >= 50), top30_late AS (SELECT SUM(late_items) AS late_items_top30, SUM(total_items) AS total_items_top30 FROM (SELECT * FROM seller_stats ORDER BY late_items DESC LIMIT 30)) SELECT ROUND(SUM(s.late_items) * 100.0 / SUM(s.total_items), 2) AS overall_baseline_late_rate_pct, ROUND(MAX(s.late_items * 100.0 / s.total_items), 2) AS highest_seller_late_rate_pct, SUM(CASE WHEN s.late_items * 100.0 / s.total_items > 40 THEN 1 ELSE 0 END) AS sellers_above_40pct, ROUND(t.late_items_top30 * 100.0 / t.total_items_top30, 2) AS top30_late_sellers_combined_late_rate_pct FROM seller_stats s CROSS JOIN top30_late t GROUP BY t.late_items_top30, t.total_items_top30",
+  "columns": [
+    "OVERALL_BASELINE_LATE_RATE_PCT",
+    "HIGHEST_SELLER_LATE_RATE_PCT",
+    "SELLERS_ABOVE_40PCT",
+    "TOP30_LATE_SELLERS_COMBINED_LATE_RATE_PCT"
+  ],
+  "rows": [
+    [
+      7.87,
+      32.1,
+      0,
+      9.39
+    ]
+  ],
+  "recorded_at": "2026-07-11T00:00:00Z"
+}

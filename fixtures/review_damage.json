@@ -1,0 +1,50 @@
+{
+  "slug": "review_damage",
+  "nl_question": "Bucket delivered orders by how many days late they were versus the estimated delivery date (early, on time, 1-3 days late, 4-7 days late, 8-15 days late, more than 15 days late) and for each bucket show the number of orders, the average review score, and the percentage of reviews that are 1 star.",
+  "sql": "WITH delivery AS (SELECT o.\"order_id\", DATEDIFF('day', TRY_TO_DATE(o.\"order_estimated_delivery_date\"), TRY_TO_DATE(o.\"order_delivered_customer_date\")) AS days_late FROM \"BRAZILIAN_E_COMMERCE\".\"BRAZILIAN_E_COMMERCE\".\"OLIST_ORDERS\" o WHERE o.\"order_status\" = 'delivered'), bucketed AS (SELECT d.\"order_id\", d.days_late, CASE WHEN d.days_late < 0 THEN 'Early' WHEN d.days_late = 0 THEN 'On Time' WHEN d.days_late <= 3 THEN '1-3 Days Late' WHEN d.days_late <= 7 THEN '4-7 Days Late' WHEN d.days_late <= 15 THEN '8-15 Days Late' ELSE 'More Than 15 Days Late' END AS delivery_bucket, CASE WHEN d.days_late < 0 THEN 1 WHEN d.days_late = 0 THEN 2 WHEN d.days_late <= 3 THEN 3 WHEN d.days_late <= 7 THEN 4 WHEN d.days_late <= 15 THEN 5 ELSE 6 END AS bucket_sort FROM delivery d) SELECT b.delivery_bucket, COUNT(DISTINCT b.\"order_id\") AS order_count, ROUND(AVG(r.\"review_score\"), 2) AS avg_review_score, ROUND(100.0 * SUM(CASE WHEN r.\"review_score\" = 1 THEN 1 ELSE 0 END) / COUNT(r.\"review_score\"), 2) AS pct_1_star_reviews FROM bucketed b INNER JOIN \"BRAZILIAN_E_COMMERCE\".\"BRAZILIAN_E_COMMERCE\".\"OLIST_ORDER_REVIEWS\" r ON b.\"order_id\" = r.\"order_id\" GROUP BY b.delivery_bucket, b.bucket_sort ORDER BY b.bucket_sort",
+  "columns": [
+    "DELIVERY_BUCKET",
+    "ORDER_COUNT",
+    "AVG_REVIEW_SCORE",
+    "PCT_1_STAR_REVIEWS"
+  ],
+  "rows": [
+    [
+      "Early",
+      88163,
+      4.29,
+      6.6
+    ],
+    [
+      "On Time",
+      1280,
+      4.03,
+      8.52
+    ],
+    [
+      "1-3 Days Late",
+      1852,
+      3.29,
+      25.16
+    ],
+    [
+      "4-7 Days Late",
+      1748,
+      2.1,
+      58.54
+    ],
+    [
+      "8-15 Days Late",
+      1601,
+      1.68,
+      69.98
+    ],
+    [
+      "More Than 15 Days Late",
+      1188,
+      1.75,
+      68.9
+    ]
+  ],
+  "recorded_at": "2026-07-11T00:00:00Z"
+}

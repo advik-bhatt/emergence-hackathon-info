@@ -33,6 +33,37 @@ Verified against live Olist data. These are the regression targets.
 
 Applied to the table above this flags exactly RJ (0.684) and CE (0.600), leaving BA (0.541) and MA (0.539) as PAD. The rule *derives* the two lanes the spec flagged by hand.
 
+**Confirmed against the full 17-lane harvest (2026-07-11).** All seven numbers above reproduced
+exactly. The full pull also surfaced a **third FIX lane the hand analysis missed: RS** (Rio Grande
+do Sul — median 13, p95 33, gap +3.8, variance share **0.606**, 5,345 orders). It clears the
+threshold on its own merits. The rule is finding lanes, not just confirming them.
+
+Full harvested lane set, with the verdict the rule assigns:
+
+| Lane | Orders | Promised | Median | p95 | Gap | Var. share | Verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| MG | 11,354 | 25.2 | 10 | 24.4 | −0.8 | — | OK |
+| PR | 4,923 | 25.3 | 10 | 25.0 | −0.3 | — | OK |
+| SP | 40,501 | 19.8 | 7 | 20.0 | +0.2 | — | OK |
+| DF | 2,080 | 24.9 | 11 | 26.0 | +1.1 | — | OK |
+| GO | 1,957 | 27.7 | 14 | 29.0 | +1.3 | — | OK |
+| MT | 886 | 32.4 | 16 | 34.0 | +1.6 | 0.529 | PAD |
+| **RS** | **5,345** | **29.2** | **13** | **33.0** | **+3.8** | **0.606** | **FIX** |
+| MS | 701 | 26.6 | 14 | 31.0 | +4.4 | 0.548 | PAD |
+| SC | 3,546 | 26.4 | 13 | 31.0 | +4.6 | 0.581 | PAD |
+| ES | 1,995 | 26.2 | 14 | 31.0 | +4.8 | 0.548 | PAD |
+| PB | 517 | 33.6 | 18 | 40.2 | +6.5 | 0.552 | PAD |
+| BA | 3,256 | 30.1 | 17 | 37.0 | +6.9 | 0.541 | PAD |
+| PE | 1,593 | 31.7 | 16 | 39.4 | +7.7 | 0.594 | PAD |
+| PA | 946 | 37.8 | 21 | 46.8 | +9.0 | 0.551 | PAD |
+| MA | 717 | 31.1 | 19 | 41.2 | +10.1 | 0.539 | PAD |
+| **RJ** | **12,350** | **27.0** | **12** | **38.0** | **+11.0** | **0.684** | **FIX** |
+| **CE** | **1,279** | **32.0** | **18** | **45.0** | **+13.0** | **0.600** | **FIX** |
+
+Resulting ops queue (orders at risk = gap × orders, zero for OK lanes):
+**RJ 135,850** · BA 22,466 · RS 20,311 · CE 16,627 · SC 16,312 · PE 12,266 · ES 9,576 · PA 8,514.
+Rio tops it by 6×.
+
 **Review-score damage (used by the falsification suite):**
 
 | Bucket | Avg review | % 1-star |
@@ -293,8 +324,12 @@ GROUND_TRUTH = [
     ("SP", 19.8, 7.0, 20.0, Verdict.OK),
     ("MG", 25.2, 10.0, 24.4, Verdict.OK),
     ("PR", 25.3, 10.0, 25.0, Verdict.OK),
+    ("DF", 24.9, 11.0, 26.0, Verdict.OK),   # gap +1.1, inside tolerance
+    ("MT", 32.4, 16.0, 34.0, Verdict.PAD),
     ("BA", 30.1, 17.0, 37.0, Verdict.PAD),
+    ("PA", 37.8, 21.0, 46.8, Verdict.PAD),  # genuinely far — padding is honest
     ("MA", 31.1, 19.0, 41.2, Verdict.PAD),
+    ("RS", 29.2, 13.0, 33.0, Verdict.FIX),  # var share 0.606 — the lane the humans missed
     ("RJ", 27.0, 12.0, 38.0, Verdict.FIX),
     ("CE", 32.0, 18.0, 45.0, Verdict.FIX),
 ]
@@ -642,7 +677,15 @@ class Lane:
 
     @property
     def orders_at_risk(self) -> float:
-        """The ops queue's sort key: how much broken promise this lane ships."""
+        """The ops queue's sort key: how much broken promise this lane ships.
+
+        A lane we have judged OK carries no risk by definition, even though its gap is
+        fractionally positive. Without this, SP (gap +0.2 x 40,501 orders) would score 8,100
+        and outrank Para in the work queue — the engine would send ops to fix a lane that is
+        already calibrated. The whole point is not to cry wolf.
+        """
+        if self.verdict is Verdict.OK:
+            return 0.0
         return max(self.gap, 0.0) * self.orders
 
     @property

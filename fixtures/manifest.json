@@ -1,0 +1,43 @@
+{
+  "connection": "brazilian-e-commerce-5f7bc95c",
+  "schema_fqn": "brazilian-e-commerce-5f7bc95c.BRAZILIAN_E_COMMERCE.BRAZILIAN_E_COMMERCE",
+  "recorded_at": "2026-07-11T00:00:00Z",
+  "note": "Recorded live from the CRAFT MCP server. All SQL came from generate_sql; none was hand-written.",
+  "fixtures": {
+    "lanes": {
+      "file": "lanes.json",
+      "rows": 17,
+      "recorded_at": "2026-07-11T00:00:00Z"
+    },
+    "seasonality": {
+      "file": "seasonality.json",
+      "rows": 20,
+      "recorded_at": "2026-07-11T00:00:00Z"
+    },
+    "state_transit": {
+      "file": "state_transit.json",
+      "rows": 17,
+      "recorded_at": "2026-07-11T00:00:00Z"
+    },
+    "review_damage": {
+      "file": "review_damage.json",
+      "rows": 6,
+      "recorded_at": "2026-07-11T00:00:00Z"
+    },
+    "churn": {
+      "file": "churn.json",
+      "rows": 6,
+      "recorded_at": "2026-07-11T00:00:00Z"
+    },
+    "seller_lateness": {
+      "file": "seller_lateness.json",
+      "rows": 1,
+      "recorded_at": "2026-07-11T00:00:00Z"
+    },
+    "seller_handling": {
+      "file": "seller_handling.json",
+      "rows": 461,
+      "recorded_at": "2026-07-11T00:00:00Z"
+    }
+  }
+}
