@@ -114,6 +114,22 @@ def test_fallback_alias_resolves():
     assert lane.late_rate == pytest.approx(0.05)
 
 
+# --- FIX 4: robustness reporting on Lane ------------------------------------------------
+
+def test_rio_is_robust_to_the_threshold(lanes):
+    assert lanes["RJ"].flip_distance > 5
+    assert lanes["RJ"].is_borderline is False
+
+
+def test_ceara_is_on_a_knife_edge(lanes):
+    assert lanes["CE"].is_borderline is True
+
+
+def test_every_real_lane_gets_a_flip_distance_without_error(lanes):
+    for lane in lanes.values():
+        assert lane.flip_distance >= 0.0
+
+
 def test_missing_concept_raises_keyerror_naming_the_concept():
     """If no alias for a concept is present, the error must name the missing concept and
     tell the caller what to edit — not raise a bare KeyError deep in dataclass construction."""

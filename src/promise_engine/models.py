@@ -3,7 +3,15 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from promise_engine.analysis.verdict import Verdict, decide, tail_fraction
+from promise_engine.analysis.verdict import Verdict, decide, flip_distance_days, tail_fraction
+
+# Below this many orders, a lane's p95 is estimated from a thin sample and carries a wide
+# confidence interval that nothing else here acknowledges.
+MIN_ORDERS_FOR_CONFIDENT_P95 = 1000
+
+# Flip distances below this are a knife edge: essentially any re-estimation of p95 could
+# change the verdict.
+BORDERLINE_FLIP_DISTANCE_DAYS = 1.0
 
 
 @dataclass(frozen=True)
@@ -86,4 +94,23 @@ class Lane:
             promised_days=self.promised_days,
             median_days=self.median_days,
             p95_days=self.p95_days,
+        )
+
+    @property
+    def flip_distance(self) -> float:
+        """How many days p95 would have to move for this lane's verdict to change."""
+        return flip_distance_days(
+            promised_days=self.promised_days,
+            median_days=self.median_days,
+            p95_days=self.p95_days,
+        )
+
+    @property
+    def is_borderline(self) -> bool:
+        """True when this lane's verdict is fragile: either it sits within a day of
+        flipping, or its p95 is estimated from fewer than 1,000 orders and so carries a
+        wide confidence interval that decide() alone does not express."""
+        return (
+            self.flip_distance < BORDERLINE_FLIP_DISTANCE_DAYS
+            or self.orders < MIN_ORDERS_FOR_CONFIDENT_P95
         )

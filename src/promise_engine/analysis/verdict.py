@@ -65,3 +65,36 @@ def decide(*, promised_days: float, median_days: float, p95_days: float) -> Verd
     if tail_fraction(median_days, p95_days) >= VARIANCE_DOMINANT_SHARE:
         return Verdict.FIX
     return Verdict.PAD
+
+
+# Step size (days) used to search for the nearest verdict-flip point, matching the
+# precision the fixtures are rounded to.
+_FLIP_SEARCH_STEP_DAYS = 0.1
+# No real lane needs anywhere near this much movement; this just keeps the search finite.
+_FLIP_SEARCH_HORIZON_DAYS = 10_000.0
+
+
+def flip_distance_days(*, promised_days: float, median_days: float, p95_days: float) -> float:
+    """How many days p95 would have to move for this lane's verdict to change.
+
+    Rio's is 8.1 — the thesis lane is not on a knife edge. Ceara's is 0.1 — it is.
+    An engine that reports FIX for both without saying which is which is lying by omission.
+
+    Searches outward from the current p95 in both directions, in
+    _FLIP_SEARCH_STEP_DAYS increments, for the nearest point at which decide() returns a
+    different verdict than it does today, holding promised_days and median_days fixed.
+    """
+    current = decide(promised_days=promised_days, median_days=median_days, p95_days=p95_days)
+    distance = _FLIP_SEARCH_STEP_DAYS
+    while distance <= _FLIP_SEARCH_HORIZON_DAYS:
+        for direction in (1.0, -1.0):
+            candidate_p95 = p95_days + direction * distance
+            if candidate_p95 < 0:
+                continue
+            candidate = decide(
+                promised_days=promised_days, median_days=median_days, p95_days=candidate_p95,
+            )
+            if candidate != current:
+                return round(distance, 1)
+        distance = round(distance + _FLIP_SEARCH_STEP_DAYS, 1)
+    return round(_FLIP_SEARCH_HORIZON_DAYS, 1)

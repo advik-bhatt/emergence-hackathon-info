@@ -1,5 +1,5 @@
 import pytest
-from promise_engine.analysis.verdict import Verdict, decide
+from promise_engine.analysis.verdict import Verdict, decide, flip_distance_days
 
 # (state, promised, median, p95, expected) — verified against live Olist data
 GROUND_TRUTH = [
@@ -40,3 +40,18 @@ def test_fast_but_unpredictable_lane_fixes():
 
 def test_zero_p95_does_not_divide_by_zero():
     assert decide(promised_days=1.0, median_days=0.0, p95_days=0.0) == Verdict.OK
+
+
+# --- FIX 4: robustness reporting -------------------------------------------------------
+
+def test_rio_flip_distance_is_about_8_point_1_days():
+    """Rio's tail would have to shrink 8.1 days before the verdict flips to PAD — the
+    thesis lane is not on a knife edge."""
+    distance = flip_distance_days(promised_days=27.0, median_days=12.0, p95_days=38.0)
+    assert distance == pytest.approx(8.1, abs=0.05)
+
+
+def test_ceara_flip_distance_is_about_0_point_1_days():
+    """Ceara sits exactly on the tail_fraction cut (27/45 == 0.60): it is on a knife edge."""
+    distance = flip_distance_days(promised_days=32.0, median_days=18.0, p95_days=45.0)
+    assert distance == pytest.approx(0.1, abs=0.05)
