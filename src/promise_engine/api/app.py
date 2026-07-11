@@ -38,6 +38,46 @@ class PromiseRequest(BaseModel):
     seasonal: bool = False
 
 
+@app.get("/runtime")
+def get_runtime() -> dict[str, Any]:
+    """What this deployment is actually wired to — the web HUD renders this verbatim."""
+    import os
+
+    return {
+        "mode": os.environ.get("PROMISE_ENGINE_MODE", "replay"),
+        "llm_configured": bool(os.environ.get("NEBIUS_API_KEY")),
+        "model": os.environ.get("NEBIUS_MODEL", "moonshotai/Kimi-K2-Instruct"),
+        "inference": "Nebius Token Factory",
+        "data_plane": "Emergence CRAFT MCP",
+        "mcp_url": os.environ.get("CRAFT_MCP_URL", "https://nebius.emergence.ai/mcp"),
+        "steps": len(INVESTIGATION.steps),
+        "hypotheses": len(INVESTIGATION.hypotheses),
+        "verified_numbers": len(INVESTIGATION.computed),
+    }
+
+
+@app.get("/receipts")
+def get_receipts() -> dict[str, Any]:
+    """Every number's provenance: the NL question asked of CRAFT and the SQL it generated."""
+    receipts = {}
+    for slug in ("lanes", "seasonality", "state_transit", "review_damage", "churn",
+                 "seller_lateness"):
+        rec = CASSETTE.replay(slug)
+        receipts[slug] = {
+            "nl_question": rec.nl_question,
+            "sql": rec.sql,
+            "columns": rec.columns,
+            "rows": rec.rows,
+        }
+    return {"receipts": receipts}
+
+
+@app.get("/seasonality")
+def get_seasonality() -> dict[str, Any]:
+    """Monthly order volume / promise / late-rate history for the calendar view."""
+    return {"months": CASSETTE.replay("seasonality").as_dicts()}
+
+
 @app.get("/lanes")
 def get_lanes() -> dict[str, Any]:
     return {"lanes": TOOLS.rank_lanes()}

@@ -1,158 +1,333 @@
-<title>The Promise Engine</title>
+<title>The Promise Engine — Mission Control</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<script type="importmap">
+  { "imports": { "three": "./vendor/three.module.js" } }
+</script>
 
-<div class="app">
-  <header class="topbar">
+<div class="app" id="app">
+
+  <!-- ══════════════ HUD TOPBAR ══════════════ -->
+  <header class="hud">
     <div class="brand">
-      <span class="brand-mark">&rarr;</span>
-      <div>
+      <span class="brand-mark"><span class="brand-pulse"></span>→</span>
+      <div class="brand-text">
         <h1>The Promise Engine</h1>
         <p class="tagline">Rio isn't slow. It's unpredictable. That's a different problem.</p>
       </div>
     </div>
-    <nav class="tabs" role="tablist">
-      <button class="tab-btn is-active" data-tab="checkout" role="tab" aria-selected="true">Checkout</button>
-      <button class="tab-btn" data-tab="ops" role="tab" aria-selected="false">Ops</button>
-    </nav>
+    <div class="hud-badges">
+      <span class="badge badge-model" id="badge-model">
+        <span class="badge-dot"></span><span id="badge-model-text">Kimi-K2 · Nebius Token Factory</span>
+      </span>
+      <span class="badge badge-mcp" id="badge-mcp">
+        <span class="badge-diamond"></span>Emergence CRAFT MCP
+      </span>
+      <span class="badge badge-mode" id="badge-mode">REPLAY</span>
+    </div>
   </header>
 
-  <main>
-    <!-- TAB 1: CHECKOUT -->
-    <section id="tab-checkout" class="tab-panel is-active">
-      <div class="checkout-grid">
-        <div class="card panel-controls">
-          <h2>Checkout</h2>
-          <p class="muted">Simulate the promise a customer would see at checkout.</p>
-
-          <label class="field">
-            <span>Seller</span>
-            <select id="seller-select"></select>
-          </label>
-
-          <label class="field">
-            <span>Ship to</span>
-            <select id="state-select"></select>
-          </label>
-
-          <label class="field toggle-field">
-            <input type="checkbox" id="black-friday-toggle">
-            <span>Black Friday (November)</span>
-          </label>
-
-          <p class="fallback-note" id="fallback-note" hidden>
-            This seller has too little delivery history — the national median handling time was used instead.
-          </p>
-        </div>
-
-        <div class="card panel-result" id="result-panel">
-          <div class="loading" id="result-loading">Computing…</div>
-
-          <div class="result-body" id="result-body" hidden>
-            <div class="compare-row">
-              <div class="compare-cell current">
-                <div class="compare-label">Olist promises today</div>
-                <div class="compare-number" id="current-days">&mdash;</div>
-                <div class="compare-unit">days</div>
-                <div class="compare-consequence" id="current-consequence"></div>
-              </div>
-              <div class="compare-divider">vs</div>
-              <div class="compare-cell engine">
-                <div class="compare-label">The Promise Engine says</div>
-                <div class="compare-number" id="engine-days">&mdash;</div>
-                <div class="compare-unit">days</div>
-                <div class="compare-consequence" id="engine-consequence">the promise a 95th-percentile order actually needs</div>
-              </div>
-            </div>
-
-            <div class="decomposition">
-              <h3>How the engine's promise breaks down</h3>
-              <div class="stacked-bar" id="stacked-bar"></div>
-              <div class="bar-legend" id="bar-legend"></div>
-            </div>
-
-            <div class="verdict-banner" id="verdict-banner">
-              <div class="verdict-tag" id="verdict-tag">&mdash;</div>
-              <div class="verdict-text" id="verdict-text"></div>
-            </div>
-
-            <div class="chip-row" id="chip-row"></div>
-          </div>
-        </div>
+  <!-- ══════════════ ACT 1 · THE MAP ══════════════ -->
+  <section class="stage stage-map" id="stage-map">
+    <div class="map-wrap" id="map-wrap">
+      <div class="map-loading" id="map-loading">
+        <div class="map-loading-line" id="map-loading-line">replaying CRAFT fixture: lanes … 17 rows</div>
       </div>
-    </section>
+    </div>
 
-    <!-- TAB 2: OPS -->
-    <section id="tab-ops" class="tab-panel">
-      <div class="card">
-        <h2>Live investigation</h2>
-        <p class="muted">The agent reasoning in real time: probe, get trapped, refuse, resolve.</p>
-        <div class="trace-list" id="trace-list"></div>
+    <div class="map-tip" id="map-tip" hidden>
+      <div class="tip-state" id="tip-state">RJ</div>
+      <div class="tip-rows" id="tip-rows"></div>
+      <div class="tip-cue">click to ship here</div>
+    </div>
+
+    <!-- Checkout panel: the landing hook -->
+    <aside class="checkout-panel glass" id="checkout-panel">
+      <p class="panel-kicker">YOU JUST SOLD A PRODUCT</p>
+      <h2 class="panel-title">Where's it going?</h2>
+
+      <label class="field">
+        <span>Seller</span>
+        <select id="seller-select"></select>
+      </label>
+
+      <div class="dest-readout">
+        <span class="dest-label">Ship to</span>
+        <span class="dest-state" id="dest-state">RJ</span>
+        <span class="dest-name" id="dest-name">Rio de Janeiro</span>
+      </div>
+      <p class="dest-hint">— pick a state on the map —</p>
+
+      <div class="promise-chip" id="promise-chip">
+        <span class="chip-label">Olist promises</span>
+        <span class="chip-days"><span id="chip-days-n">27</span><small>days</small></span>
       </div>
 
-      <div class="card trap-card">
-        <h2>The Trap</h2>
-        <p class="muted">
-          If reviews are the only outcome this dataset can measure, what promise maximizes them?
+      <div class="avatar-strip" id="avatar-strip">
+        <div class="avatars" id="avatar-row"></div>
+        <p class="avatar-caption" id="avatar-caption">…breaks its word to 1 in 7 of these customers</p>
+      </div>
+
+      <div class="month-chip" id="month-chip" hidden>
+        <span id="month-chip-text">November · Black Friday load</span>
+        <button class="month-chip-x" id="month-chip-clear" aria-label="Clear month">×</button>
+      </div>
+
+      <button class="cta" id="cta-breakdown">Audit this promise ↓</button>
+    </aside>
+
+    <!-- Live KPI strip -->
+    <div class="kpi-strip" id="kpi-strip">
+      <div class="kpi tilt" data-receipt="lanes">
+        <span class="kpi-n" id="kpi-orders">0</span>
+        <span class="kpi-l">orders scanned</span>
+      </div>
+      <div class="kpi tilt" data-receipt="lanes">
+        <span class="kpi-n" id="kpi-lanes">0</span>
+        <span class="kpi-l">lanes audited</span>
+      </div>
+      <div class="kpi tilt kpi-risk" data-receipt="lanes">
+        <span class="kpi-n" id="kpi-risk">0</span>
+        <span class="kpi-l">orders at risk</span>
+      </div>
+    </div>
+
+    <div class="map-legend glass" id="map-legend">
+      <span class="lg-title">height = orders at risk</span>
+      <span class="lg-item"><i class="lg-swatch sw-fix"></i>FIX — promise broken</span>
+      <span class="lg-item"><i class="lg-swatch sw-pad"></i>PAD — honestly far</span>
+      <span class="lg-item"><i class="lg-swatch sw-keep"></i>KEEP — calibrated</span>
+      <span class="lg-item"><i class="lg-swatch sw-na"></i>&lt;500 orders — excluded by filter</span>
+    </div>
+
+    <div class="scroll-cue" id="scroll-cue"><span></span></div>
+  </section>
+
+  <!-- ══════════════ ACT 2 · THE BREAKDOWN ══════════════ -->
+  <section class="stage stage-breakdown" id="stage-breakdown">
+    <header class="stage-head">
+      <h2 class="stage-title">The promise, <em>decomposed</em></h2>
+      <p class="stage-sub">Every number below traces to a recorded CRAFT query. Hover any figure for its receipt.</p>
+    </header>
+
+    <div class="compare-row">
+      <div class="compare-cell current glass tilt" data-receipt="lanes">
+        <div class="compare-label">Olist promises today</div>
+        <div class="compare-number"><span id="current-days">—</span></div>
+        <div class="compare-unit">days</div>
+        <div class="compare-consequence" id="current-consequence"></div>
+      </div>
+      <div class="compare-vs" aria-hidden="true">
+        <span class="vs-beam"></span><span class="vs-text">vs</span>
+      </div>
+      <div class="compare-cell engine glass tilt" data-receipt="state_transit">
+        <div class="compare-label">The Promise Engine says</div>
+        <div class="compare-number"><span id="engine-days">—</span></div>
+        <div class="compare-unit">days</div>
+        <div class="compare-consequence">what a 95th-percentile order actually needs</div>
+      </div>
+    </div>
+
+    <div class="decomp glass">
+      <h3>How the engine breaks it down</h3>
+      <div class="stacked-bar" id="decomp-bar"></div>
+      <div class="bar-legend" id="decomp-legend"></div>
+
+      <div class="whatif">
+        <label for="whatif-slider">
+          <span class="whatif-label">What if <em>you</em> handed off faster?</span>
+          <span class="whatif-value" id="whatif-value">−0.0 days handling</span>
+        </label>
+        <input type="range" id="whatif-slider" min="0" max="100" value="0" step="1">
+        <p class="whatif-out">promise becomes <strong id="whatif-days">—</strong> days</p>
+      </div>
+    </div>
+
+    <div class="verdict-row">
+      <div class="verdict-stamp-wrap glass">
+        <div class="verdict-stamp" id="verdict-stamp"><span id="verdict-tag">—</span></div>
+        <p class="verdict-text" id="verdict-text"></p>
+        <p class="fallback-note" id="fallback-note" hidden>
+          This seller has too little delivery history — the national median handling time was used instead.
         </p>
-        <div class="trap-body">
-          <div class="trap-chart-wrap">
-            <svg id="trap-chart" viewBox="0 0 480 220" preserveAspectRatio="xMidYMid meet"
-                 role="img" aria-label="Average review score climbing then flattening as extra promise days increase">
-            </svg>
-          </div>
-          <div class="trap-verdict">
-            <div class="trap-infinity" id="trap-infinity">+&infin;</div>
-            <div class="trap-unbounded">UNBOUNDED</div>
-            <p class="trap-caption" id="trap-caption"></p>
-          </div>
-        </div>
-        <div class="trap-refusal" id="trap-refusal">
-          <h3>Why we refuse it</h3>
-          <p id="trap-refusal-text"></p>
-        </div>
-        <p class="trap-caveat" id="trap-caveat-text"></p>
+        <div class="chip-row" id="chip-row"></div>
+      </div>
+      <div class="flip-dial-wrap glass" data-receipt="lanes">
+        <h3>How sure is the verdict?</h3>
+        <svg class="flip-dial" id="flip-dial" viewBox="0 0 200 120" role="img" aria-label="Verdict robustness dial">
+          <path class="dial-track" d="M20 105 A85 85 0 0 1 180 105" />
+          <path class="dial-fill" id="dial-fill" d="M20 105 A85 85 0 0 1 180 105" />
+          <line class="dial-needle" id="dial-needle" x1="100" y1="105" x2="100" y2="34" />
+          <circle class="dial-hub" cx="100" cy="105" r="6" />
+        </svg>
+        <p class="flip-label" id="flip-label">verdict flips on ±— days</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ ACT 2.5 · THE RACE ══════════════ -->
+  <section class="stage stage-race" id="stage-race">
+    <header class="stage-head">
+      <h2 class="stage-title">Two parcels leave São&nbsp;Paulo<em>*</em></h2>
+      <p class="stage-sub">Same lane. Same promise. The median order and the 95th-percentile order — day by day.
+        <button class="replay-btn" id="race-replay">↺ replay</button>
+      </p>
+    </header>
+    <div class="race glass" id="race" data-receipt="state_transit">
+      <div class="race-axis" id="race-axis"></div>
+      <div class="race-lane" id="race-lane-median">
+        <span class="race-tag">median order</span>
+        <div class="race-parcel" id="parcel-median">▣</div>
+      </div>
+      <div class="race-lane" id="race-lane-p95">
+        <span class="race-tag">p95 order</span>
+        <div class="race-parcel" id="parcel-p95">▣</div>
+      </div>
+      <div class="race-flag" id="race-flag"><span class="flag-days" id="flag-days">27</span><span class="flag-label">the promise</span></div>
+      <div class="race-counter" id="race-counter">day 0</div>
+      <div class="race-broken" id="race-broken" hidden>WORD BROKEN</div>
+    </div>
+    <p class="race-note">*schematic — the data records destination-state outcomes, not routes.</p>
+  </section>
+
+  <!-- ══════════════ ACT 3 · THE SEASON ══════════════ -->
+  <section class="stage stage-season" id="stage-season">
+    <header class="stage-head">
+      <h2 class="stage-title">When Brazil shops, <em>the promise bends</em></h2>
+      <p class="stage-sub">Twenty real months. Click one — the checkout up top re-quotes with that month's load.</p>
+    </header>
+    <div class="season-wrap">
+      <div class="season-grid glass" id="season-grid" data-receipt="seasonality"></div>
+      <aside class="season-detail glass" id="season-detail">
+        <p class="sd-kicker" id="sd-kicker">HOVER A MONTH</p>
+        <h3 class="sd-title" id="sd-title">—</h3>
+        <div class="sd-rows" id="sd-rows"></div>
+        <p class="sd-punch" id="sd-punch"></p>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ══════════════ ACT 4 · THE ENGINE ROOM ══════════════ -->
+  <section class="stage stage-engine" id="stage-engine">
+    <header class="stage-head">
+      <h2 class="stage-title">Watch the engine <em>think</em></h2>
+      <p class="stage-sub">
+        <span class="engine-chip" id="engine-chip-model"><span class="badge-dot"></span>reasoning: Kimi-K2 · Nebius</span>
+        <span class="engine-chip"><span class="badge-diamond"></span>every SQL: Emergence CRAFT · generate_sql</span>
+        <button class="replay-btn" id="trail-replay">↺ replay</button>
+      </p>
+    </header>
+
+    <div class="engine-grid">
+      <div class="trail" id="trail">
+        <svg class="trail-beam-svg" id="trail-beam-svg" aria-hidden="true">
+          <line class="trail-rail" id="trail-rail" x1="18" y1="0" x2="18" y2="100%" />
+          <line class="trail-beam" id="trail-beam" x1="18" y1="0" x2="18" y2="0" />
+        </svg>
+        <div class="trail-steps" id="trail-steps"></div>
       </div>
 
-      <div class="card">
-        <h2>Falsification preamble</h2>
-        <p class="muted">What we tested before recommending anything &mdash; and what survived.</p>
-        <div class="hypothesis-grid" id="hypothesis-grid"></div>
-      </div>
-
-      <div class="card narrative-card" id="narrative-card" hidden>
-        <h2>What the agent concluded</h2>
-        <p class="narrative-text" id="narrative-text"></p>
-      </div>
-
-      <div class="card">
-        <h2>Ops work queue</h2>
-        <p class="muted">Ranked by orders at risk &mdash; the promise-days ops actually ships broken.</p>
-        <div class="table-wrap">
-          <table class="queue-table" id="queue-table">
-            <thead>
-              <tr>
-                <th>State</th>
-                <th>Orders</th>
-                <th>Promised</th>
-                <th>Median</th>
-                <th>p95</th>
-                <th>Gap</th>
-                <th>Late rate</th>
-                <th>Orders at risk</th>
-                <th>Verdict</th>
-              </tr>
-            </thead>
-            <tbody id="queue-tbody"></tbody>
-          </table>
+      <div class="engine-side">
+        <div class="hypotheses glass">
+          <h3>Falsification preamble <span class="h3-sub">what we tried to kill first</span></h3>
+          <div class="hypothesis-grid" id="hypothesis-grid"></div>
+        </div>
+        <div class="narrative glass" id="narrative-card" hidden>
+          <h3>What the agent concluded
+            <span class="verified-badge" id="verified-badge" data-receipt="lanes"><span class="vb-check">✓</span><span id="verified-count">0</span> numbers verified · 0 hallucinated</span>
+          </h3>
+          <p class="narrative-text" id="narrative-text"></p>
         </div>
       </div>
-    </section>
-  </main>
+    </div>
+  </section>
+
+  <!-- ══════════════ ACT 5 · THE TRAP ══════════════ -->
+  <section class="stage stage-trap" id="stage-trap">
+    <header class="stage-head">
+      <h2 class="stage-title trap-title">The trap we <em>refused</em></h2>
+      <p class="stage-sub">If reviews are the only outcome this dataset can measure… what promise maximizes them?
+        <button class="replay-btn" id="trap-replay">↺ replay</button>
+      </p>
+    </header>
+
+    <div class="trap-theatre" id="trap-theatre">
+      <div class="trap-console glass">
+        <div class="tc-head">
+          <span class="tc-title">NAIVE OPTIMIZER</span>
+          <span class="tc-status" id="tc-status">idle</span>
+        </div>
+        <label class="tc-slider-row">
+          <span>extra promise days</span>
+          <span class="tc-days" id="tc-days">+0</span>
+        </label>
+        <input type="range" id="trap-slider" min="0" max="30" value="0" step="1" disabled>
+        <div class="tc-kpis" id="tc-kpis">
+          <div class="tc-kpi" id="tc-kpi-review"><span class="tck-n" id="tck-review">—</span><span class="tck-l">avg review</span></div>
+          <div class="tc-kpi" id="tc-kpi-late"><span class="tck-n" id="tck-late">—</span><span class="tck-l">late rate</span></div>
+          <div class="tc-kpi" id="tc-kpi-star"><span class="tck-n" id="tck-star">—</span><span class="tck-l">1-star rate</span></div>
+        </div>
+      </div>
+
+      <div class="trap-chart-wrap glass" data-receipt="review_damage">
+        <svg id="trap-chart" viewBox="0 0 480 240" preserveAspectRatio="xMidYMid meet"
+             role="img" aria-label="Average review score climbing then flattening as extra promise days increase"></svg>
+        <div class="trap-alarm" id="trap-alarm" hidden>
+          <div class="trap-infinity">+∞</div>
+          <div class="trap-unbounded">UNBOUNDED</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="refusal-overlay" id="refusal-overlay" hidden>
+      <div class="refusal-stamp">REFUSED</div>
+      <p class="refusal-line" id="refusal-line"></p>
+    </div>
+
+    <div class="trap-refusal glass" id="trap-refusal">
+      <h3>Why we refuse it</h3>
+      <p id="trap-refusal-text"></p>
+      <p class="trap-caveat" id="trap-caveat-text"></p>
+    </div>
+  </section>
+
+  <!-- ══════════════ ACT 5.5 · THE STARS ══════════════ -->
+  <section class="stage stage-stars" id="stage-stars">
+    <header class="stage-head">
+      <h2 class="stage-title">What a broken promise <em>costs</em></h2>
+      <p class="stage-sub">88,163 on-time orders average ★4.29. Miss by two weeks and most reviews are 1-star.</p>
+    </header>
+    <div class="star-wall" id="star-wall" data-receipt="review_damage"></div>
+  </section>
+
+  <!-- ══════════════ ACT 6 · THE QUEUE ══════════════ -->
+  <section class="stage stage-queue" id="stage-queue">
+    <header class="stage-head">
+      <h2 class="stage-title">Monday morning's <em>work queue</em></h2>
+      <p class="stage-sub">Ranked by orders at risk — the promise-days ops actually ships broken.</p>
+    </header>
+    <ol class="queue" id="queue"></ol>
+    <p class="queue-celebrate" id="queue-celebrate" hidden>
+      <span class="qc-spark">✦</span> SP · MG · PR already keep their word — no action, and we're not crying wolf.
+    </p>
+  </section>
 
   <footer class="footnote">
-    No claim is made anywhere in this product about conversion or revenue &mdash; Olist has no clickstream data,
+    No claim is made anywhere in this product about conversion or revenue — Olist has no clickstream data,
     so conversion is unmeasurable here. All figures come from the CRAFT-recorded fixtures via <code>generate_sql</code>.
   </footer>
 </div>
 
-<script src="app.js"></script>
+<!-- receipts popover -->
+<div class="receipt-pop glass" id="receipt-pop" hidden>
+  <p class="rp-kicker">RECEIPT — asked of CRAFT</p>
+  <p class="rp-q" id="rp-q"></p>
+  <pre class="rp-sql" id="rp-sql"></pre>
+</div>
+
+<canvas id="confetti-canvas"></canvas>
+
+<script type="module" src="js/app.js"></script>
