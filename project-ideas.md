@@ -51,6 +51,30 @@ their estimator works fine where the lane is stable, and fails exactly where the
 
 ---
 
+## The SECOND axis: the promise is blind to *time* too
+
+Same defect, different dimension. Verified:
+
+| Month | Orders | Actual days | Promised | Late rate |
+| --- | --- | --- | --- | --- |
+| Oct 2017 | 4,478 | 11.7 | 23.7d | 5.3% |
+| **Nov 2017 (Black Friday)** | **7,288** | **15.1** | **23.2d** | **14.3%** 🚨 |
+| Feb 2018 | 6,555 | 16.9 | 25.2d | 16.0% |
+| **Mar 2018** | 7,003 | 16.2 | 22.7d | **21.4%** 🚨 |
+| Jun 2018 | 6,096 | 9.2 | 28.4d | **1.4%** ✅ |
+
+**The late rate swings 1.4% → 21.4% — a 15× range. The promise barely moves (20–28 days).**
+
+Black Friday is the money example: volume **+63%**, actual delivery slows 11.7 → 15.1 days, late
+rate **triples** — and the promise shown to customers actually went **down** (23.7 → 23.2d).
+**Olist made a harder promise exactly when it was least able to keep it.**
+
+> **The engine answers *where* AND *when*:**
+> *"Same order, same lane. In June: promise 20 days. On Black Friday: promise 28 — or you break
+> 1 in 7."*
+
+---
+
 ## What the agent DOES (the product)
 
 Two surfaces, one engine:
@@ -69,6 +93,16 @@ target service level, plus honesty about it.
 ### 2. Ops — "which lanes do we fix, and in what order?"
 Rank lanes by **promise gap × volume** = orders at risk. Rio tops it: +11 days of gap on 12,350
 orders. That's the work queue. It is a *decision*, not a chart.
+
+### 3. Seller scorecards — free, once you decompose the promise
+Split the promise into **seller handling p95 + lane transit p95**. Now the engine can *attribute*:
+
+> *"38 days, because this seller takes 5 days to hand off to the carrier **and** the Rio lane has
+> a 26-day tail."*
+
+That attribution is what turns a number into a decision — and it becomes a product Olist could
+sell to its sellers: **"Your handling time adds 3 days to every promise we show your customers."**
+Seller handling ranges **2.1 → 5.0 days** across the late-rate buckets, so this is real signal.
 
 ### The lever the agent surfaces
 Every risky lane has exactly two options, and the agent makes the trade explicit:
@@ -152,8 +186,23 @@ Supporting (the investigation):
    10-20%, 20-40%, over 40%) and show for each bucket the number of sellers, total delivered
    items, total late items, and share of all late items."*
 
-**Stretch (only if ahead):** swap `customer_state` for the **seller_state → customer_state lane**
-for a finer work-queue.
+**SEASONALITY (add this — ~20 min, doubles the story):**
+> *"For delivered orders, group by the year and month of order_purchase_timestamp and show the
+> number of orders, the average actual delivery days, the average promised days, and the late
+> rate. Only months with at least 500 orders, ordered chronologically."*
+
+**SELLER DECOMPOSITION (the real upgrade — ~30 min):**
+> *"For each seller with at least 50 delivered items, compute the 95th percentile of seller
+> handling days (order_approved_at to order_delivered_carrier_date). Separately, for each
+> customer_state, compute the 95th percentile of carrier transit days
+> (order_delivered_carrier_date to order_delivered_customer_date)."*
+
+Then **promise = seller_handling_p95 + lane_transit_p95**. This is what makes the engine
+*per-order* rather than *per-state* — at checkout you know the seller — and it hands you a second
+product surface for free (seller scorecards, below).
+
+**Skip:** anything involving freight cost / price optimisation. It drags you back toward
+conversion claims the data cannot support.
 
 ## Gotchas that cost 20 minutes each
 
@@ -171,8 +220,9 @@ for a finer work-queue.
 | --- | --- |
 | **0:00–0:20** | Nebius + CRAFT MCP wired. Prove ONE `generate_sql` → `execute_query` → `get_result_page` round-trip prints rows. |
 | **0:20–0:50** | **The core query working end-to-end.** Ship the promise table. This alone is the project. |
-| **0:50–1:15** | The agent judgement: for a given state, output current promise / recommended promise / late rate / pad-vs-fix call. |
-| **1:15–1:35** | Ops work-queue (gap × volume) + the 3 investigation queries as a "how we know" preamble. |
+| **0:50–1:10** | The agent judgement: for a given state, output current promise / recommended promise / late rate / pad-vs-fix call. |
+| **1:10–1:25** | **Seasonality** (one query — the Black Friday line is your best sentence). |
+| **1:25–1:35** | Ops work-queue (gap × volume) + the investigation queries as a "how we know" preamble. **Seller decomposition only if you're ahead.** |
 | **1:35–1:50** | **Record the demo video while it works.** |
 | **1:50–2:00** | Devpost writeup. Buffer. |
 
@@ -194,11 +244,14 @@ for a finer work-queue.
 3. *"What it's NOT adjusted for is **variance**. Watch Rio."*
 4. **"Rio's median is 12 days. Its p95 is 38. It's not slow — it's unpredictable. Olist promises
    27, so we break our word to 1 in 7 customers — in our #2 market, right next to São Paulo."**
-5. *"So the engine does two things: it sets a promise that actually hits 95% on-time, and it
-   ranks the lanes worth fixing. For Rio it says **don't pad — fix**, because promising 38 days to
-   your second-biggest market is not a strategy."*
-6. *"São Paulo, Minas, Paraná come back **already calibrated**. We're not crying wolf — we're
-   pointing at the three lanes that actually matter."*
+5. *"And it's blind to **time** as well as place. On Black Friday, volume jumped 63%, delivery
+   slowed by 3.5 days, and the late rate **tripled** — while the promise we showed customers
+   actually got **shorter**. We made a harder promise exactly when we were least able to keep it."*
+6. *"So the engine sets a promise that actually hits 95% on-time — by lane **and** by season — and
+   ranks the lanes worth fixing. For Rio it says **don't pad, fix**: promising 38 days to your
+   second-biggest market is not a strategy."*
+7. *"São Paulo, Minas, Paraná come back **already calibrated**. We're not crying wolf — we're
+   pointing at the three lanes and the two months that actually matter."*
 
 ---
 
