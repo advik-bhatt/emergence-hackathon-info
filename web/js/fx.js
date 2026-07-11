@@ -56,14 +56,18 @@ export function typewriter(el, text, { cps = 55 } = {}) {
 }
 
 // ── word-by-word generate (LLM-stream feel) ──────────────────────
-export function wordGenerate(el, text, { stagger = 42 } = {}) {
+export function wordGenerate(el, text, { stagger = 42, maxTotal = 8000 } = {}) {
   el.innerHTML = "";
-  text.split(/\s+/).forEach((word, i) => {
+  const words = text.split(/\s+/);
+  const step = Math.min(stagger, maxTotal / Math.max(words.length, 1));
+  words.forEach((word, i) => {
     const span = document.createElement("span");
     span.className = "w";
-    span.textContent = word + " ";
-    span.style.setProperty("--d", `${i * stagger}ms`);
+    span.textContent = word;
+    span.style.setProperty("--d", `${Math.round(i * step)}ms`);
     el.appendChild(span);
+    // the space must live OUTSIDE the inline-block span, or it collapses
+    el.appendChild(document.createTextNode(" "));
   });
 }
 
