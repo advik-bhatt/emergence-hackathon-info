@@ -39,3 +39,13 @@ def test_the_real_committed_fixtures_replay():
     result = Cassette("fixtures").replay("lanes")
     states = {row[0] for row in result.rows}
     assert {"RJ", "SP", "CE"} <= states
+
+
+def test_as_dicts_raises_on_duplicate_lowercased_column_names(tmp_path):
+    """Two columns that collide after .lower() (e.g. LATE_RATE and late_rate) must not
+    silently keep whichever one happens to come last in the row."""
+    cassette = Cassette(tmp_path)
+    cassette.record("lanes", nl_question="q", sql="s",
+                     columns=["LATE_RATE", "late_rate"], rows=[[1, 2]])
+    with pytest.raises(ValueError, match="[Dd]uplicate"):
+        cassette.replay("lanes").as_dicts()

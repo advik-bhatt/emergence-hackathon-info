@@ -55,3 +55,24 @@ def test_ceara_flip_distance_is_about_0_point_1_days():
     """Ceara sits exactly on the tail_fraction cut (27/45 == 0.60): it is on a knife edge."""
     distance = flip_distance_days(promised_days=32.0, median_days=18.0, p95_days=45.0)
     assert distance == pytest.approx(0.1, abs=0.05)
+
+
+# --- FIX 5(a): absolute floor on FIX -----------------------------------------------------
+
+def test_same_day_lane_with_trivial_tail_does_not_get_fix():
+    """Because the discriminator is a pure ratio, a same-day lane with a 1.8-day tail
+    (promised=0.4, median=0.2, p95=2.0) clears the 0.60 tail_fraction and would otherwise be
+    dispatched to ops as 'attack the tail' at a scale where that is nonsense. Below the
+    absolute floor, decide must fall through to PAD instead of FIX."""
+    assert decide(promised_days=0.4, median_days=0.2, p95_days=2.0) == Verdict.PAD
+
+
+@pytest.mark.parametrize("state,promised,median,p95", [
+    ("RJ", 27.0, 12.0, 38.0),
+    ("RS", 29.2, 13.0, 33.0),
+    ("CE", 32.0, 18.0, 45.0),
+])
+def test_real_fix_lanes_are_unaffected_by_the_absolute_floor(state, promised, median, p95):
+    """All three real FIX lanes have tails of 26.0, 20.0 and 27.0 days — comfortably above
+    the 5.0-day floor — so introducing it must not change their verdict."""
+    assert decide(promised_days=promised, median_days=median, p95_days=p95) == Verdict.FIX

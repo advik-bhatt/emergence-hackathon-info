@@ -39,6 +39,13 @@ OK_TOLERANCE_DAYS = 1.5
 # is_borderline, so fragility near this boundary is visible rather than hidden.
 VARIANCE_DOMINANT_SHARE = 0.60
 
+# Minimum absolute tail, in days, required for a FIX verdict. tail_fraction is a pure ratio,
+# so without a floor a same-day lane with a trivial 1.8-day tail (e.g. promised=0.4,
+# median=0.2, p95=2.0) can clear the 0.60 fraction and get dispatched to ops as "attack the
+# tail" — nonsense at that scale. All three real FIX lanes (RJ, RS, CE) have tails of 26.0,
+# 20.0 and 27.0 days, so this floor changes nothing on real data.
+MIN_TAIL_DAYS_FOR_FIX = 5.0
+
 
 def tail_fraction(median_days: float, p95_days: float) -> float:
     """Fraction of the required promise (p95) that is TAIL rather than DISTANCE:
@@ -62,7 +69,10 @@ def decide(*, promised_days: float, median_days: float, p95_days: float) -> Verd
     gap = p95_days - promised_days
     if gap <= OK_TOLERANCE_DAYS:
         return Verdict.OK
-    if tail_fraction(median_days, p95_days) >= VARIANCE_DOMINANT_SHARE:
+    if (
+        tail_fraction(median_days, p95_days) >= VARIANCE_DOMINANT_SHARE
+        and (p95_days - median_days) >= MIN_TAIL_DAYS_FOR_FIX
+    ):
         return Verdict.FIX
     return Verdict.PAD
 

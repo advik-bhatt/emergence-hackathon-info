@@ -27,6 +27,14 @@ class QueryResult:
 
     def as_dicts(self) -> list[dict[str, Any]]:
         keys = [c.lower() for c in self.columns]
+        seen: set[str] = set()
+        duplicates = {k for k in keys if k in seen or seen.add(k)}  # type: ignore[func-returns-value]
+        if duplicates:
+            raise ValueError(
+                f"Duplicate column name(s) after lowercasing: {sorted(duplicates)} "
+                f"(from columns {self.columns!r}). Two distinctly-cased columns collided; "
+                f"as_dicts would otherwise silently keep whichever one comes last."
+            )
         return [dict(zip(keys, row, strict=True)) for row in self.rows]
 
 
