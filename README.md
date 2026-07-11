@@ -55,6 +55,7 @@ Full captures: [`devpost-enterprise-agents-hackathon.md`](./devpost-enterprise-a
 [`nebius-hackathon-prerequisites.md`](./nebius-hackathon-prerequisites.md) ·
 [`craft_databases.md`](./craft_databases.md) ·
 [`research-starter-repos.md`](./research-starter-repos.md) ·
+**→ [`PROMISE-ENGINE.md`](./PROMISE-ENGINE.md) — the project we're building** ·
 [`project-ideas.md`](./project-ideas.md) ·
 [`SESSION-SUMMARY.md`](./SESSION-SUMMARY.md)
 
