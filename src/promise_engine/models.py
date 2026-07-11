@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 from promise_engine.analysis.verdict import Verdict, decide, variance_share
@@ -15,6 +16,32 @@ class Lane:
     median_days: float
     p95_days: float
     late_rate: float
+
+    def __post_init__(self) -> None:
+        """Invariants that real data guarantees by construction. These cost nothing on the
+        17 real lanes, but they convert a silent mis-resolved column (e.g. a re-record that
+        renames a column so PROMISED_DAYS ends up holding the recommended promise instead of
+        the current one) into a loud failure instead of a quietly wrong verdict."""
+        if self.orders <= 0:
+            raise ValueError(f"orders must be > 0, got {self.orders!r}")
+
+        for field in ("promised_days", "median_days", "p95_days", "late_rate"):
+            value = getattr(self, field)
+            if not math.isfinite(value):
+                raise ValueError(f"{field} must be finite, got {value!r}")
+
+        if not self.promised_days > 0:
+            raise ValueError(f"promised_days must be > 0, got {self.promised_days!r}")
+
+        if not 0.0 <= self.median_days <= self.p95_days:
+            raise ValueError(
+                f"expected 0 <= median_days <= p95_days, got median_days="
+                f"{self.median_days!r}, p95_days={self.p95_days!r} (a p95 cannot fall "
+                f"below its own median)"
+            )
+
+        if not 0.0 <= self.late_rate <= 1.0:
+            raise ValueError(f"late_rate must be in [0.0, 1.0], got {self.late_rate!r}")
 
     @property
     def recommended_promise(self) -> float:
