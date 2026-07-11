@@ -73,8 +73,26 @@ Google's deps.dev data: a map of essentially every public software package (npm,
 **Tables:** `PACKAGEVERSIONS` (every version of every package, with licenses and advisories attached), `ADVISORIES` (security vulnerabilities — CVSS score, severity, description, affected ranges), `DEPENDENCIES` (what a package pulls in, plus `MinimumDepth` = how many hops away), `DEPENDENCYGRAPHEDGES` (the raw graph, edge by edge), `DEPENDENTS` (the reverse direction — who relies on *you*), `PROJECTS` (the GitHub/GitLab repo behind a package: stars, forks, open issues, OSS-Fuzz status), `PACKAGEVERSIONTOPROJECT` (links a package to its repo), `NUGETREQUIREMENTS`, `PACKAGEVERSIONHASHES`, `SNAPSHOTS`.
 
 **Two things make this unusually rich:**
-- Several columns are nested JSON (`VARIANT`) — `Licenses`, `Advisories`, `Dependency` — so real `LATERAL FLATTEN` work is required.
-- Every row is timestamped with `SnapshotAt` and there's a `SNAPSHOTS` table, meaning **this is a time series of the entire dependency graph**, not a single snapshot. You can watch a vulnerability spread or a fix get adopted.
+- Several columns are nested JSON (`VARIANT`) — `Licenses`, `Advisories`, `Dependency`, `Dependent` — so real `LATERAL FLATTEN` work is required.
+- `DEPENDENTS` carries a **`MinimumDepth`** column: the transitive dependency graph is *precomputed*. Blast radius ("how many packages sit downstream of this CVE") is a join, not a graph traversal. Verified for NPM: ~535K dependent edges, 32,675 distinct packages, 155,336 distinct dependents, max depth **117**.
+
+**⚠️ Correction — it is NOT a time series of the whole graph.** An earlier version of this
+guide claimed you could "watch a vulnerability spread or a fix get adopted." **You cannot.**
+Verified distinct `SnapshotAt` values:
+
+| Table | Distinct snapshots |
+| --- | --- |
+| `ADVISORIES` | **1** |
+| `DEPENDENTS` | **1** |
+| `DEPENDENCIES` | 19 |
+| `PACKAGEVERSIONS` | 44 |
+
+Advisories and reverse-dependencies are each a **single frozen snapshot**. Don't plan around snapshot history.
+
+**The real time signal is event timestamps — and it's better anyway.** `ADVISORIES.Disclosed`
+and `PACKAGEVERSIONS.UpstreamPublishedAt` are true event times. That supports genuine temporal
+claims ("this CVE has been public for N days and X packages still depend on a vulnerable
+version") with no snapshot history needed.
 
 **Good for:** dependency risk, license compliance, upgrade planning, "what breaks if this package dies."
 
@@ -87,6 +105,18 @@ Google's deps.dev data: a map of essentially every public software package (npm,
 **Tables:** `LANGUAGES` (languages per repo), `LICENSES` (license per repo), `SAMPLE_REPOS` (repo name + watcher count), `SAMPLE_COMMITS` (commit messages, authors, diffs), `SAMPLE_FILES` (file paths), `SAMPLE_CONTENTS` (**actual file contents as text**).
 
 **Good for:** analyzing code and commit *text* — what's in files, how people write commit messages, language/license distribution.
+
+**It contains real dependency manifests** — which makes a `github-repos` → `deps-dev-v1` cross-connection join possible (real repo → its real CVEs). Verified counts in `SAMPLE_CONTENTS`:
+
+| Manifest | Rows | Distinct repos |
+| --- | --- | --- |
+| `package.json` | 80 | 76 |
+| `pom.xml` | 45 | 44 |
+| `requirements.txt` | 4 | 4 |
+| `Cargo.toml` | 3 | 3 |
+| `go.mod` | 0 | 0 |
+
+Too thin to be a product, but enough to validate an idea against real repos.
 
 **Not good for:** issues, pull requests, or full contributor history — those tables don't exist here. Any "maintainer health / bus factor" idea that assumes complete commit history will hit a wall. Use `deps-dev-v1`'s `PROJECTS` table for repo-level stats instead.
 
@@ -132,3 +162,26 @@ Metadata about cancer imaging scans — **not the images themselves.** Which pat
 - **Nested JSON is everywhere that matters.** `ga4`, `firebase`, and `deps-dev-v1` all hide their best fields inside `VARIANT` columns. Snowflake needs `LATERAL FLATTEN` to read them — this is precisely the SQL that generic LLMs get wrong and CRAFT gets right.
 - **Date-partitioned tables.** `ga4` and `firebase` split data into one table per day. Multi-day questions mean unioning across tables.
 - **Let CRAFT write the SQL.** The judging criteria explicitly reward using `generate_sql` and the semantic layer over hand-rolled queries. Both reference agents advertise "no hand-written SQL anywhere" as a feature.
+
+### MCP gotchas (learned by hitting them)
+
+- **`sample_data` wants a 3-part name** — `DATABASE.SCHEMA.TABLE` — *not* the 4-part
+  `connection.database.schema.table` FQN that the tool description advertises. Passing the
+  4-part FQN returns `HTTP 400: table_fqn must be 'database.schema.table', got 4 parts`.
+  Every *other* tool (`get_schema`, `search_schema`) does want the full FQN.
+- **`execute_query` does not return rows directly.** It returns an `artifact_fqn`; you then
+  call `get_result_page` with that value to actually see the data.
+- **All timestamps are microsecond epoch integers** (not just `thelook`). Divide by
+  1,000,000 before `TO_TIMESTAMP`. This applies to `SnapshotAt`, `Disclosed`,
+  `UpstreamPublishedAt`, and crypto's `block_timestamp`.
+- **`generate_sql` often answers the question in its `explanation`** before you even run
+  the SQL — useful for fast profiling/exploration.
+
+## Scale reference (verified)
+
+Rough sizes, so you can pick something tractable in a hackathon window:
+
+- `crypto` Ethereum `TOKEN_TRANSFERS` — **18.5M rows**, 2016-04 → 2024-07. Fine *if* you
+  constrain by block height or time; otherwise you will wait forever.
+- `deps-dev-v1` `DEPENDENTS` (NPM) — ~535K edges, 32,675 packages, 155,336 dependents.
+  Comfortable.
