@@ -472,7 +472,18 @@ body::after {
   100% { transform: scale(1); }
 }
 .avatar-caption { font-size: 12.5px; color: var(--muted); }
-.avatar-caption b { color: var(--signal); }
+.avatar-caption b {
+  color: var(--signal);
+  font-weight: 700;
+  display: inline-block; /* so it can transform */
+}
+.avatar-caption b.changed { animation: ratio-pop 850ms var(--ease-out); }
+@keyframes ratio-pop {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.6); text-shadow: 0 0 20px oklch(0.68 0.22 26 / 0.85); }
+  55%  { transform: scale(0.95); }
+  100% { transform: scale(1); text-shadow: none; }
+}
 
 .month-chip {
   display: flex;

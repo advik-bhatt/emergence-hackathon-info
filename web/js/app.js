@@ -23,6 +23,7 @@ const state = {
 };
 
 let race;
+let lastRatioText; // previous "1 in N" so we can pop it when it changes
 
 /* ── seller aliases: a persona can't care about a hex id ───────── */
 function sellerAlias(s, idx) {
@@ -69,11 +70,16 @@ function renderCheckout(quote) {
     row.appendChild(a);
   }
   const caption = $("avatar-caption");
-  if (n <= 12) {
-    caption.textContent = `…breaks its word to 1 in ${n} of these customers`;
-  } else {
-    caption.textContent = `…breaks its word to ${fmt(rate, 1)}% of customers`;
+  const ratioText = n <= 12 ? `1 in ${n}` : `${fmt(rate, 1)}%`;
+  caption.textContent = "…breaks its word to ";
+  const ratio = document.createElement("b");
+  ratio.textContent = ratioText;
+  caption.appendChild(ratio);
+  caption.append(n <= 12 ? " of these customers" : " of customers");
+  if (lastRatioText !== undefined && lastRatioText !== ratioText) {
+    ratio.classList.add("changed"); // fresh node → the pop plays immediately
   }
+  lastRatioText = ratioText;
   // snap one avatar red after a beat
   setTimeout(() => {
     const victims = row.querySelectorAll(".avatar");
