@@ -2,7 +2,7 @@
 import { $, fmt, sleep, typewriter, wordGenerate, onInView, shake, reducedMotion } from "./fx.js";
 
 /* ═══════════ REASONING TRAIL ═══════════ */
-export function initTrail(investigation, runtime) {
+export function initTrail(investigation, runtime, lanes = []) {
   const stepsEl = $("trail-steps");
   const beam = $("trail-beam");
   const modelVia = `${(runtime.model || "LLM").split("/").pop()} · Nebius`;
@@ -67,12 +67,46 @@ export function initTrail(investigation, runtime) {
     const cards = $("hypothesis-grid").querySelectorAll(".hypothesis-card");
     cards.forEach((c, i) => setTimeout(() => c.classList.add("on"), i * 140));
 
-    // narrative streams in like the LLM wrote it
+    // the conclusion: one line + verified stats, full text behind the fold
     if (investigation.narrative) {
       await sleep(cards.length * 140 + 250);
       $("narrative-card").hidden = false;
       $("verified-count").textContent = fmt(runtime.verified_numbers || 0);
-      wordGenerate($("narrative-text"), investigation.narrative);
+      $("narrative-text").textContent = investigation.narrative;
+
+      // the agent's own refusal line, verbatim if present
+      const quote = investigation.narrative.match(/We will not optimize[^.]*\./)?.[0]
+        || "We will not optimize a metric whose downside we cannot see.";
+      wordGenerate($("concl-quote"), quote, { stagger: 60 });
+
+      const dead = investigation.hypotheses.filter((h) => h.status === "DEAD").length;
+      const survived = investigation.hypotheses.length - dead;
+      const top = lanes[0];
+      const grid = $("concl-grid");
+      grid.innerHTML = "";
+      const stats = [
+        { n: `${dead} killed · ${survived} live`, l: "hypotheses, falsified first", alarm: false },
+        { n: "+∞ REFUSED", l: "the review-max promise", alarm: true },
+      ];
+      if (top) {
+        stats.push(
+          { n: fmt(top.orders_at_risk), l: `order-days at risk — ${top.state} tops the queue`, alarm: true },
+          { n: top.verdict, l: "fix the tail — don't pad the promise", alarm: false },
+        );
+      }
+      stats.forEach((s, i) => {
+        const el = document.createElement("div");
+        el.className = "concl-stat" + (s.alarm ? " alarm" : "");
+        const n = document.createElement("span");
+        n.className = "cs-n";
+        n.textContent = s.n;
+        const l = document.createElement("span");
+        l.className = "cs-l";
+        l.textContent = s.l;
+        el.append(n, l);
+        grid.appendChild(el);
+        setTimeout(() => el.classList.add("on"), 300 + i * 150);
+      });
     }
     running = false;
   }

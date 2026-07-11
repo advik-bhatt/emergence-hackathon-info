@@ -1128,7 +1128,57 @@ body::after {
   animation: vb-sweep 3.2s var(--ease-in-out) infinite;
 }
 @keyframes vb-sweep { 40%, 100% { transform: translateX(100%); } }
-.narrative-text { font-size: 14.5px; color: var(--ink); max-width: 62ch; }
+.concl-quote {
+  font: 700 clamp(1.15rem, 1.9vw, 1.45rem)/1.35 var(--display);
+  color: var(--ink);
+  text-wrap: balance;
+  margin-bottom: 18px;
+  min-height: 1.4em;
+}
+.concl-quote::before { content: "“"; color: var(--phosphor); }
+.concl-quote::after { content: "”"; color: var(--phosphor); }
+.concl-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.concl-stat {
+  padding: 13px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: oklch(0.2 0.02 222 / 0.5);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 450ms var(--ease-out), transform 450ms var(--ease-out);
+}
+.concl-stat.on { opacity: 1; transform: none; }
+.concl-stat .cs-n {
+  display: block;
+  font: 600 22px/1.15 var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--phosphor);
+}
+.concl-stat.alarm .cs-n { color: var(--signal); }
+.concl-stat .cs-l {
+  font: 500 10px/1.5 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.narrative-details summary {
+  cursor: pointer;
+  font: 500 11.5px/1 var(--mono);
+  letter-spacing: 0.06em;
+  color: var(--cyan);
+  padding: 8px 0;
+  list-style: none;
+}
+.narrative-details summary::before { content: "▸ "; }
+.narrative-details[open] summary::before { content: "▾ "; }
+.narrative-details summary::-webkit-details-marker { display: none; }
+.narrative-details[open] .narrative-text { margin-top: 10px; }
+.narrative-text { font-size: 13.5px; color: var(--muted); max-width: 62ch; }
 .narrative-text .w {
   opacity: 0;
   filter: blur(6px);

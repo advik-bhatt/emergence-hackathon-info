@@ -263,7 +263,7 @@ function setDestination(lane) {
     refreshQuote();
   });
 
-  initTrail(investigation, runtime);
+  initTrail(investigation, runtime, lanes);
   if (investigation.trap) initTrap(investigation.trap);
   if (receiptsData.receipts.review_damage) {
     initStars(receiptsData.receipts.review_damage.rows);
