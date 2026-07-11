@@ -11,10 +11,10 @@ const K = 1.05; // degrees → world units
 const project = ([lon, lat]) => [(lon - CENTER.lon) * K, (lat - CENTER.lat) * K];
 
 const COLORS = {
-  FIX:  { base: 0x8f2e22, emissive: 0xd94f36 },
-  PAD:  { base: 0x8a6b1f, emissive: 0xdca93f },
-  KEEP: { base: 0x1f6b47, emissive: 0x3fae74 },
-  NA:   { base: 0x232a30, emissive: 0x2c343b },
+  FIX: { base: 0x8f2e22, emissive: 0xd94f36 },
+  PAD: { base: 0x8a6b1f, emissive: 0xdca93f },
+  OK:  { base: 0x1f6b47, emissive: 0x3fae74 },
+  NA:  { base: 0x232a30, emissive: 0x2c343b },
 };
 
 export async function initMap({ container, lanes, onSelect }) {

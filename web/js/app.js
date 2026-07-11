@@ -56,7 +56,29 @@ async function refreshQuote() {
 }
 
 function renderCheckout(quote) {
+  // the duel: false number vs the truth
   countUp($("chip-days-n"), quote.current_promise, { duration: 700 });
+  countUp($("pd-engine-n"), quote.days, { duration: 900 });
+  const duel = $("promise-duel");
+  duel.classList.remove("struck");
+  if (quote.verdict !== "OK") {
+    void duel.offsetWidth; // restart the strike transition
+    duel.classList.add("struck");
+  }
+  const pill = $("pd-delta");
+  const delta = Math.round(quote.days - quote.current_promise);
+  const label =
+    quote.verdict === "FIX" ? `${delta >= 0 ? "+" : ""}${delta}d short — fix the tail` :
+    quote.verdict === "PAD" ? `+${delta}d short — honestly far` :
+    "calibrated — keep it";
+  const pillChanged = pill.dataset.prev !== undefined && pill.dataset.prev !== label;
+  pill.className = `pd-delta ${quote.verdict.toLowerCase()}`;
+  pill.textContent = label;
+  if (pillChanged) {
+    void pill.offsetWidth;
+    pill.classList.add("changed");
+  }
+  pill.dataset.prev = label;
 
   // "breaks its word to 1 in N" avatars
   const row = $("avatar-row");

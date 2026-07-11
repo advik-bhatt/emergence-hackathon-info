@@ -138,9 +138,21 @@ function showDetail(data, year, month, months) {
 
 /* ═══════════ THE PARCEL RACE ═══════════ */
 export function initRace() {
-  const race = $("race");
   let currentLane = null;
   let raf = null;
+  let loopTimer = null;
+  let visible = false;
+  const LOOP_DELAY = 3200; // hold the finished frame, then run again
+
+  // loop only while the section is actually on screen
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      visible = entry.isIntersecting;
+      if (visible && currentLane) run(currentLane);
+      if (!visible) { cancelAnimationFrame(raf); clearTimeout(loopTimer); }
+    });
+  }, { threshold: 0.35 });
+  io.observe($("stage-race"));
 
   function layout(lane) {
     const maxDay = Math.ceil(lane.p95_days) + 3;
@@ -163,6 +175,7 @@ export function initRace() {
 
   function run(lane) {
     cancelAnimationFrame(raf);
+    clearTimeout(loopTimer);
     currentLane = lane;
     const maxDay = layout(lane);
     const pMed = $("parcel-median");
@@ -199,8 +212,14 @@ export function initRace() {
         broken.hidden = false;
         brokeShown = true;
       }
-      if (day >= lane.p95_days) pP95.classList.replace("late", "late"); // stays red
-      if (t < 1) raf = requestAnimationFrame(tick);
+      if (t < 1) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        // hold the ending, then loop while the section is visible
+        loopTimer = setTimeout(() => {
+          if (visible && currentLane) run(currentLane);
+        }, LOOP_DELAY);
+      }
     };
     raf = requestAnimationFrame(tick);
   }
@@ -208,16 +227,16 @@ export function initRace() {
   $("race-replay").addEventListener("click", () => currentLane && run(currentLane));
 
   return {
-    setLane(lane, { autorun = false } = {}) {
+    setLane(lane) {
       currentLane = lane;
       layout(lane);
-      if (autorun) run(lane);
+      if (visible) run(lane);
     },
     run: () => currentLane && run(currentLane),
     arm(lane) {
       currentLane = lane;
       layout(lane);
-      onInView($("stage-race"), () => run(currentLane));
+      if (visible) run(lane);
     },
   };
 }
@@ -343,7 +362,7 @@ export function initQueue(lanes) {
         countUp(riskN, lane.orders_at_risk, { duration: 1100 });
       }, i * 110);
     });
-    const keeps = lanes.filter((l) => l.verdict === "KEEP");
+    const keeps = lanes.filter((l) => l.verdict === "OK");
     if (keeps.length) {
       setTimeout(() => {
         $("queue-celebrate").hidden = false;
