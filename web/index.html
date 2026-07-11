@@ -172,6 +172,19 @@
           <circle class="dial-hub" cx="100" cy="105" r="6" />
         </svg>
         <p class="flip-label" id="flip-label">verdict flips on ±— days</p>
+
+        <div class="stress">
+          <label class="stress-row" for="stress-slider">
+            <span>stress-test: move the tail</span>
+            <span class="stress-val" id="stress-val">p95 = — d</span>
+          </label>
+          <input type="range" id="stress-slider" min="-120" max="120" value="0" step="1">
+          <div class="stress-out">
+            <span class="stress-verdict" id="stress-verdict">—</span>
+            <button class="stress-reset" id="stress-reset" hidden>reset</button>
+          </div>
+          <p class="stress-note">same rule the engine runs — promise &amp; median held fixed</p>
+        </div>
       </div>
     </div>
   </section>

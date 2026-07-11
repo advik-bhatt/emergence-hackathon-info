@@ -20,7 +20,30 @@ const state = {
   monthLabel: null,
   quote: null,
   lanesByState: {},
+  rules: null, // decide()'s thresholds, served by /runtime
 };
+
+// Mirrors analysis/verdict.py::decide() — thresholds come from the backend.
+function decideVerdict(promised, median, p95, rules) {
+  const gap = p95 - promised;
+  if (gap <= rules.ok_tolerance_days) return "OK";
+  const tail = p95 - median;
+  if (tail / p95 >= rules.variance_dominant_share && tail >= rules.min_tail_days_for_fix) return "FIX";
+  return "PAD";
+}
+
+// Mirrors analysis/verdict.py::flip_distance_days() (60d search horizon is plenty here).
+function flipDistanceDays(promised, median, p95, rules) {
+  const current = decideVerdict(promised, median, p95, rules);
+  for (let d = 0.1; d <= 60; d = Math.round((d + 0.1) * 10) / 10) {
+    for (const dir of [1, -1]) {
+      const candidate = p95 + dir * d;
+      if (candidate < 0) continue;
+      if (decideVerdict(promised, median, candidate, rules) !== current) return d;
+    }
+  }
+  return 60;
+}
 
 let race;
 let lastRatioText; // previous "1 in N" so we can pop it when it changes
@@ -184,17 +207,61 @@ function renderBreakdown(quote) {
     chipRow.appendChild(chip);
   }
 
-  // robustness dial: more flip-distance = more buried needle
-  const flip = Math.abs(quote.flip_distance ?? 0);
-  const conf = Math.min(flip / 8, 1); // 8+ days to flip = fully robust
+  // robustness dial + live stress-test: drag the tail, the same rule re-decides
   const dial = $("flip-dial");
-  $("dial-fill").style.strokeDashoffset = 252 - conf * 252;
-  $("dial-fill").style.stroke = quote.is_borderline ? "var(--amber)" : "var(--phosphor)";
-  $("dial-needle").style.transform = `rotate(${-90 + conf * 180}deg)`;
-  dial.classList.toggle("trembling", !!quote.is_borderline);
-  $("flip-label").textContent = quote.is_borderline
-    ? `trembling — the verdict flips if p95 moves ±${fmt(flip, 1)} days`
-    : `robust — p95 would have to move ${fmt(flip, 1)} days to flip this verdict`;
+  const setDial = (flip, borderline, stroke) => {
+    const conf = Math.min(Math.abs(flip) / 8, 1); // 8+ days to flip = fully robust
+    $("dial-fill").style.strokeDashoffset = 252 - conf * 252;
+    $("dial-fill").style.stroke = stroke;
+    $("dial-needle").style.transform = `rotate(${-90 + conf * 180}deg)`;
+    dial.classList.toggle("trembling", borderline);
+  };
+
+  const stress = $("stress-slider");
+  const baseP95 = quote.lane_p95_days;
+  const med = quote.lane_median_days;
+  const prom = quote.current_promise;
+  stress.value = 0;
+
+  const applyStress = () => {
+    const shift = stress.value / 10;
+    const p95 = Math.max(baseP95 + shift, 0);
+    $("stress-val").textContent =
+      `p95 = ${fmt(p95, 1)}d (${shift >= 0 ? "+" : ""}${fmt(shift, 1)})`;
+    $("stress-reset").hidden = shift === 0;
+    const sv = $("stress-verdict");
+
+    if (shift === 0 || !state.rules) {
+      // at rest: show exactly what the server said
+      setDial(quote.flip_distance ?? 0, !!quote.is_borderline,
+        quote.is_borderline ? "var(--amber)" : "var(--phosphor)");
+      $("flip-label").textContent = quote.is_borderline
+        ? `trembling — the verdict flips if p95 moves ±${fmt(quote.flip_distance, 1)} days`
+        : `robust — p95 would have to move ${fmt(quote.flip_distance, 1)} days to flip this verdict`;
+      sv.className = `stress-verdict ${quote.verdict.toLowerCase()}`;
+      sv.textContent = `${quote.verdict} — holds`;
+      return;
+    }
+
+    const v = decideVerdict(prom, med, p95, state.rules);
+    const fd = flipDistanceDays(prom, med, p95, state.rules);
+    const flipped = v !== quote.verdict;
+    setDial(fd, fd < 1,
+      flipped ? "var(--signal)" : fd < 1 ? "var(--amber)" : "var(--phosphor)");
+    $("flip-label").textContent = flipped
+      ? `FLIPPED — at a ${fmt(p95, 1)}-day tail this lane becomes ${v}`
+      : fd < 1
+        ? `still ${v} — but now ±${fmt(fd, 1)} days from flipping`
+        : `still ${v} — ${fmt(fd, 1)} more days to flip`;
+    const svClassNow = `stress-verdict ${v.toLowerCase()}${flipped ? " flipped" : ""}`;
+    if (sv.className !== svClassNow) {
+      sv.className = svClassNow; // fresh class set restarts the pop animation
+    }
+    sv.textContent = flipped ? `${v} — flipped` : `${v} — holds`;
+  };
+  stress.oninput = applyStress;
+  $("stress-reset").onclick = () => { stress.value = 0; applyStress(); };
+  applyStress();
 
   // what-if handling slider
   const slider = $("whatif-slider");
@@ -255,6 +322,7 @@ function setDestination(lane) {
 
   const lanes = lanesData.lanes;
   lanes.forEach((l) => { state.lanesByState[l.state] = l; });
+  state.rules = runtime.verdict_rules || null;
 
   // HUD truth badges — rendered verbatim from /runtime
   if (runtime.model) {

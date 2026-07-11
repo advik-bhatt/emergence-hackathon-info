@@ -16,6 +16,11 @@ from pydantic import BaseModel
 
 from promise_engine.agent.loop import run_investigation
 from promise_engine.agent.tools import Tools
+from promise_engine.analysis.verdict import (
+    MIN_TAIL_DAYS_FOR_FIX,
+    OK_TOLERANCE_DAYS,
+    VARIANCE_DOMINANT_SHARE,
+)
 from promise_engine.craft.cassette import Cassette
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -53,6 +58,12 @@ def get_runtime() -> dict[str, Any]:
         "steps": len(INVESTIGATION.steps),
         "hypotheses": len(INVESTIGATION.hypotheses),
         "verified_numbers": len(INVESTIGATION.computed),
+        # decide()'s thresholds, so the web stress-test replays the same rule
+        "verdict_rules": {
+            "ok_tolerance_days": OK_TOLERANCE_DAYS,
+            "variance_dominant_share": VARIANCE_DOMINANT_SHARE,
+            "min_tail_days_for_fix": MIN_TAIL_DAYS_FOR_FIX,
+        },
     }
 
 
