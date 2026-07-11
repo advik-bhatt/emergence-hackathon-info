@@ -39,27 +39,29 @@ def _print_preamble(console: Console, hypotheses) -> None:
 
 def _print_queue(console: Console, lanes) -> None:
     console.rule("[bold]Ops work queue[/bold] (ranked by orders at risk)")
-    table = Table(show_header=True, header_style="bold")
-    table.add_column("State")
-    table.add_column("Orders", justify="right")
-    table.add_column("Promised", justify="right")
-    table.add_column("Median", justify="right")
-    table.add_column("p95", justify="right")
-    table.add_column("Gap", justify="right")
-    table.add_column("Late rate", justify="right")
-    table.add_column("Orders at risk", justify="right")
-    table.add_column("Verdict")
+    # Headers are terse and every column is no_wrap: "orders at risk" is the headline
+    # number of this table, and a demo that renders it as "135,8…" has buried the finding.
+    table = Table(show_header=True, header_style="bold", pad_edge=False, padding=(0, 1))
+    table.add_column("State", no_wrap=True)
+    table.add_column("Orders", justify="right", no_wrap=True)
+    table.add_column("Promise", justify="right", no_wrap=True)
+    table.add_column("Med", justify="right", no_wrap=True)
+    table.add_column("p95", justify="right", no_wrap=True)
+    table.add_column("Gap", justify="right", no_wrap=True)
+    table.add_column("Late", justify="right", no_wrap=True)
+    table.add_column("At risk", justify="right", no_wrap=True)
+    table.add_column("Verdict", no_wrap=True)
 
     for lane in lanes:
         style = VERDICT_STYLE.get(lane["verdict"], "")
         verdict_text = Text(lane["verdict"], style=style)
         if lane["is_borderline"]:
-            verdict_text.append(" (borderline)", style="italic yellow")
+            verdict_text.append(" ~", style="italic yellow")
         table.add_row(
             lane["state"],
             f"{lane['orders']:,}",
             f"{lane['current_promise']:.1f}",
-            f"{lane['median_days']:.1f}",
+            f"{lane['median_days']:.0f}",
             f"{lane['p95_days']:.1f}",
             f"{lane['gap']:+.1f}",
             f"{lane['late_rate']:.1f}%",
@@ -67,6 +69,7 @@ def _print_queue(console: Console, lanes) -> None:
             verdict_text,
         )
     console.print(table)
+    console.print("[dim]~ = borderline: the verdict flips on a sub-day change in p95.[/dim]")
     console.print()
 
 
