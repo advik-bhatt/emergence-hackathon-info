@@ -1,262 +1,171 @@
-# Project Ideas — Emergence × Nebius (CRAFT)
+# THE FALSIFIER — build plan (2 hours)
 
-Every number in this file was **verified by querying the data through the CRAFT MCP**. Several
-claims in the hackathon guide and in `craft_databases.md` turned out to be false — see
-Landmines. Where an idea died on contact with the data, it's recorded as dead, so nobody
-re-derives it.
+> **An agent that tries to kill its own hypotheses, and only reports what survives.**
 
-**The only hard requirement: build on at least one database.** No mandatory track, no forced
-tech. So the design goal is purely to maximise the rubric:
+Dataset: `brazilian-e-commerce-5f7bc95c` (Olist). Rubric:
+**CRAFT depth 30% · Insight quality 30% · Agent architecture 20% · Story clarity 20%**
 
-**CRAFT usage depth 30% · Insight quality 30% · Agent architecture 20% · Story clarity 20%**
+Devpost says *"investigation showcase, not a query competition."* Almost every team will show
+an agent that confirms whatever it was pointed at. Ours **disproves three plausible theories on
+stage** and lands on the one that survives. That's the whole pitch.
 
-Two things follow:
-
-- **60% of the score is insight + CRAFT depth.** Pick the dataset with a *real finding* in it.
-- **There is no uncrowded dataset.** Every pairing ships with a suggested project printed next
-  to it in the guide ("churn agent", "blast-radius investigation", …). Uniqueness has to come
-  from **the question, not the data.** Pick a lane, then deliberately ask the question that
-  *isn't* the one printed beside it.
+**Everything below is already verified against the live data.** The five NL questions are known
+to produce working SQL through `generate_sql`. You are not discovering — you are *wiring*.
 
 ---
 
-# 🏆 THE PROJECT: "The Padding Paradox" (`brazilian-e-commerce`)
+## The investigation (this is your demo script)
 
-> **Olist is padding delivery promises across all ~99,000 orders to hide the failures of
-> 30 sellers.**
+### H1 — "Bad experiences drive customers away." ❌ FALSIFIED
+Repeat rate is **3.12%** (2,997 of 96,096 customers). And it's flat by first-order review:
+**1-star → 3.26% repeat. 5-star → 3.17%.** A ruined delivery has **zero** effect on return rate.
+There is no churn to analyse.
+*(This is the prompt the hackathon guide suggests for this dataset. We kill it in 30 seconds.)*
 
-That's the finding. It is counterintuitive, fully supported by the data, and the action is
-unmissable. Below is the investigation, beat by beat — every number verified.
+### H2 — "Then late delivery must be what hurts." ✅ SURVIVES
+It doesn't cost retention — it costs **reviews**, the marketplace's ranking currency.
 
-## Beat 1 — Kill the obvious hypothesis
-
-The guide's canonical prompt for the ecommerce pairing is *"a customer-insights agent
-investigating churn hypotheses."* So test churn first, honestly:
-
-| Metric | Value |
-| --- | --- |
-| Distinct customers (`customer_unique_id`) | 96,096 |
-| Customers who ever ordered twice | 2,997 |
-| **Repeat rate** | **3.12%** |
-
-And repeat rate **by the review score of their first order**:
-
-| First-order review | Repeat rate |
-| --- | --- |
-| ⭐ 1 star | **3.26%** |
-| ⭐⭐⭐⭐⭐ 5 stars | **3.17%** |
-
-**A ruined delivery has zero effect on whether a customer comes back.** There is no churn to
-analyse — nobody comes back regardless. The canonical prompt is a **dead end**, and most teams
-following it will present noise or quietly fabricate a narrative.
-
-*(The other half of that pairing, `thelook`, is synthetic and has no signal either — see
-Landmines. So the printed prompt for this lane is a trap on both sides.)*
-
-## Beat 2 — So what is the actual asset? Reviews.
-
-Retention isn't the lever. On a **marketplace**, the review score is the trust and ranking
-currency. And late delivery annihilates it:
-
-| Delivery vs. promise | Orders | Avg review | % 1-star |
-| --- | --- | --- | --- |
-| Early | 88,653 | 4.29 | 6.6% |
-| On time | 1,291 | 4.03 | 8.5% |
-| 1–3 days late | 1,856 | 3.29 | 25% |
-| 4–7 days late | 1,756 | 2.10 | 58.5% |
-| 8–15 days late | 1,609 | 1.68 | **70%** |
-
-Clean, monotonic, brutal. (This much is also what the reference "Seller Delivery Intelligence
-Agent" found — so **do not stop here.** This is the setup, not the punchline.)
-
-## Beat 3 — The damage is brutally concentrated
-
-Of 2,970 sellers and 8,714 late items:
-
-| Sellers | Count | Share of ALL late items |
+| Delivery vs promise | Avg review | % 1-star |
 | --- | --- | --- |
-| **Top 1%** | **30** | **29.63%** |
-| Top 5% | 149 | 57.82% |
-| Top 10% | 297 | 72.72% |
-| Top 20% | 594 | 86.92% |
+| Early | 4.29 | 6.6% |
+| 1–3 days late | 3.29 | 25% |
+| 8–15 days late | **1.68** | **70%** |
 
-**Thirty sellers cause nearly a third of all late deliveries.**
+### H3 — "So a few terrible sellers must be causing it." ❌ FALSIFIED
+The top-30 sellers by late *count* look guilty — until you check their *rate*: **9.39% late vs
+7.41%** baseline. They're not bad, **they're just big.** It was a volume artifact.
 
-## Beat 4 — The punchline
+Check properly (sellers with ≥50 items, ranked by late **rate**): **not one seller is above 40%
+late.** Half of all late items come from the utterly ordinary 5–10% bucket. Lateness is
+**diffuse**. There are no villains to fire.
 
-Look again at Beat 2: **88,653 orders arrive early, only 1,291 on time.** Olist inflates its
-delivery estimate on essentially *every* order — a marketplace-wide penalty, a slower promise
-shown to every customer of every honest seller — in order to absorb the failures of **1% of
-its sellers**.
+### H4 — "Then the delivery promise must be a dumb flat buffer." ❌ FALSIFIED
+It isn't. It **is** distance-adjusted: São Paulo is promised ~20 days, Pará ~38.
 
-**The padding is a global anaesthetic for a local infection.**
+### 🏆 H5 — What actually survives: **Rio de Janeiro is a broken lane.**
 
-### The action
+| State | Orders | Promised | Actual | Slack | Late rate |
+| --- | --- | --- | --- | --- | --- |
+| MA | 717 | 31.1d | 21.5d | 9.6d | 19.7% |
+| BA | 3,256 | 30.1d | 19.3d | 10.8d | 14.0% |
+| **RJ** | **12,350** | 27.0d | **15.2d** | 11.8d | **13.5%** |
+| **SP** | **40,494** | 19.8d | **8.7d** | 11.1d | **5.9%** |
+| PR | 4,923 | 25.3d | 11.9d | 13.3d | 5.0% |
 
-1. **Triage the 30.** Fix, re-route, or delist them → recovers ~30% of all late deliveries,
-   and with them the 1-star reviews that late deliveries generate at a 58–70% rate.
-2. **Then tighten the promise for the other 2,940 sellers** — who are currently being made to
-   look slow to cover for sellers they've never met.
+**Rio is the 2nd-biggest market (~13% of all orders), sits next door to São Paulo, and is 2.3×
+worse — 15.2 days vs 8.7, late 13.5% vs 5.9%.** Distance explains Maranhão. **Distance does not
+explain Rio.** It's a broken lane, and unlike the remote states it is big, close, and fixable.
 
-## ⚠️ The one claim you must NOT make
+**The mechanic:** Olist's promise scales with *distance* but not with *reliability*. Slack barely
+moves (9.6 → 14.4 days) while the late rate moves 4× (5% → 20%). The riskiest lanes get the
+*least* buffer. The estimator knows Maranhão is far. It doesn't know Maranhão is **unpredictable**.
 
-**Do not say "tighter promises will lift conversion."** Olist has **no clickstream** — no
-sessions, no browsing, no cart events. Conversion lift is an industry belief you *cannot
-measure in this data*, and a judge can puncture it in one question.
+### The recommendation
+1. **Fix the Rio lane.** Bringing RJ to SP's late rate converts **~900 late orders** into on-time
+   ones — and late orders yield 1-star reviews 58–70% of the time.
+2. **Make the promise variance-aware, not just distance-aware.** Buffer by lane *reliability*.
 
-Say only what the data supports: **you can tighten promises without increasing late-delivery
-risk.** The argument stays bulletproof.
-
-## Agent architecture — the falsification loop
-
-This is where the 20% architecture score lives. The agent doesn't run a report; it runs an
-**investigation** and is willing to be wrong:
-
-```
-hypothesise  →  test  →  FALSIFY  →  re-hypothesise  →  localise  →  recommend
-   churn         3.12%    flat by      reviews are      Pareto:      triage 30,
-   drives        repeat   review        the real         30 sellers   then tighten
-   the loss      rate     score         asset            = 30%        the promise
-```
-
-An agent that **kills its own hypothesis with evidence** and pivots is exactly the multi-step
-reasoning the rubric asks for — and almost nobody will demo it. Devpost literally calls this
-an *"investigation showcase, not a query competition."* Lean all the way into that.
-
-Use CRAFT's DX tools (`search_schema`, `explain_error`, `get_hint`) on the way through — that's
-the 30% CRAFT-depth score, and it's cheap to earn.
-
-## The voice layer (ElevenLabs — teammate has unlimited credits)
-
-Voice earns **no points directly** — there is no UI/UX category, and it only touches the 20%
-story slice. So it is strictly a *finishing* move, never a foundation.
-
-But the demo writes itself, because the finding is a decision:
-
-> **"Should we tighten our delivery promises?"**
-> *"No. First, fire these thirty sellers."*
-
-**Architecture — keep Nemotron as the brain:**
-
-```
-Mic / phone
-   │
-ElevenLabs  ── STT + TTS ONLY (ears and mouth)
-   │
-Your agent loop
-   │
-Nebius Token Factory — Nemotron-3 Super 120B  ← reasoning + function calling
-   │
-CRAFT MCP — generate_sql → execute_query → get_result_page
-```
-
-Don't let ElevenLabs' built-in LLM do the thinking. Nebius is *strategic, not mandatory* — the
-judges are Emergence + Nebius engineers and the prizes are Nebius credits — but Nemotron has
-native function calling and 1M context, so it should own the tool loop. (If you want
-ElevenLabs Agents for turn-taking, run it in **custom-LLM mode** pointed at Nebius's
-OpenAI-compatible endpoint.)
-
-## Build sequence
-
-1. **The investigation.** All four beats, reproducible through `generate_sql`. This is 60%.
-2. **The falsification loop** as a real agent, with error recovery. This is 20%.
-3. **Voice, time-boxed, last.** Text path stays working underneath.
-4. **Record a backup demo video the moment voice works.** If the room's WiFi or mic betrays
-   you, play the tape.
-
-> **The rule:** if voice isn't working by your cutoff, ship without it and the project is still
-> strong. If that's not true, the layering is wrong.
+### ⚠️ The one thing you must NOT say
+**Never claim tighter promises lift conversion.** Olist has **no clickstream** — no sessions, no
+cart. That's unmeasurable here and a judge will puncture it. Only claim what's supported.
 
 ---
 
-# Runner-up ideas
+## Architecture
 
-## 💡 Cohort Bias Auditor — "a datasheet for your cohort" (`idc`)
+```
+CLI  →  agent loop  →  Nebius Token Factory (Nemotron-3 Super 120B, function calling)
+                    →  CRAFT MCP: generate_sql → execute_query → get_result_page
+                    →  verdict: SUPPORTED / FALSIFIED / INCONCLUSIVE
+                    →  next hypothesis
+```
 
-Best of the health ideas, and orthogonal to its lane's printed prompt (*"correlate imaging
-modality with molecular subtype"*). Everyone there will correlate what's **in** the data; you'd
-ask what **isn't**.
+The loop is the product. For each hypothesis: **state it → ask CRAFT in English → run it → let
+the model rule on its own theory → pivot.** Print every step. The transcript *is* the demo.
 
-`IDC.TCGA_CLINICAL_REL9` holds all **11,353** TCGA patients with `race`, `ethnicity`, `gender`,
-`age`, `stage`, `vital_status`. Mark a patient as *imaged* if their `case_barcode` appears as a
-`PatientID` in `DICOM_ALL` — a single-connection join — and ask **who is missing.** Verified:
+**No hand-written SQL.** Every query goes through `generate_sql` — that's the 30% CRAFT-depth
+score, and it's free because the questions below already work.
 
-| Cancer | Imaged | Total | Rate |
-| --- | --- | --- | --- |
-| **LAML** (leukemia) | **0** | 200 | **0.0%** |
-| SKCM (melanoma) | 151 | 470 | 32.1% |
-| BRCA | 562 | 1,098 | 51.2% |
-| **KIRC** (kidney) | 416 | 537 | **77.5%** |
+## The five questions (verified — feed these to `generate_sql` verbatim)
 
-A **77-point spread**. IDC is marketed as pan-cancer; it is actually a *solid-tumor* cohort with
-a heavy kidney skew and **zero leukemia patients**.
+Schema arg for all of them:
+`{"schema_name": "BRAZILIAN_E_COMMERCE", "schema_fqn": "brazilian-e-commerce-5f7bc95c.BRAZILIAN_E_COMMERCE.BRAZILIAN_E_COMMERCE"}`
 
-Also verified, on race (all 11,353 patients): **Asian 40.15% vs White 44.95%** imaged — ~2.4σ,
-**p≈0.016, significant.** But **Black 44.65% vs White 44.95% — no gap at all.** So "the imaging
-cohort is racially biased" is *false as stated*; only the narrower Asian finding survives. Say
-the narrow true thing.
+1. **H1** — *"Using OLIST_CUSTOMERS.customer_unique_id as the true person, how many distinct
+   people are there, how many placed more than one order, and what is the overall repeat purchase
+   rate? Then, for customers whose FIRST order received a given review score (1 to 5), what
+   percentage went on to place another order?"*
+2. **H2** — *"Bucket delivered orders by how many days late they were versus the estimated
+   delivery date (early, on time, 1-3 days late, 4-7 days late, 8-15 days late, more than 15 days
+   late) and for each bucket show the number of orders, the average review score, and the
+   percentage of reviews that are 1 star."*
+3. **H3a** — *"Identify the 30 sellers with the most late delivered items, then compare those 30
+   against all other sellers on average seller handling days, average carrier transit days, late
+   rate, and cross-state share."*
+4. **H3b** — *"Among sellers with at least 50 delivered items, bucket them by late rate (under
+   5%, 5-10%, 10-20%, 20-40%, over 40%) and show for each bucket the number of sellers, total
+   delivered items, total late items, and share of all late items."*
+5. **H5** — *"For delivered orders, group by customer_state and compute number of orders, average
+   promised days, average actual delivery days, average slack, and late rate. Only states with at
+   least 500 orders, ordered by late rate descending."*
 
-**The trap, which is also the feature:** LAML is 0% because leukemia is a blood cancer you don't
-CT-scan — that's **medicine, not bias**, and a sharp judge will say so instantly. So make the
-agent *distinguish clinically-expected absence from genuine sampling bias*. That discrimination
-**is** the project, and it's real multi-step reasoning.
+## Gotchas that will cost you 20 minutes each
 
-- ❌ Dead end within this idea: **imaging rate by stage** — no signal (Stage I 50.7%, Stage IV
-  53.9%, Stage IVA 35.4%). Noise. Don't dress it up.
-
-## 💡 Blast Radius (`deps-dev` + `github-repos`) — ⚠️ NOT original
-
-Dependency CVE blast radius is **literally the project printed next to this dataset pairing** in
-the guide ("a supply-chain vulnerability blast-radius investigation"). Every team in that lane
-lands here. Being the fifth-best blast radius is worse than being the only anything-else.
-
-*If* you ever return to it, the only defensible angle is the reframe — **"47 vulns collapse into
-3 upgrades"** as a minimum set-cover over the dependency graph (uniquely possible because
-`DEPENDENTS.MinimumDepth` precomputes the transitive graph), plus the abandonment score:
-**`once` has 941 dependent packages and was last published in September 2016.** Lead with those
-and never say the words "blast radius."
-
-## 💡 Crypto circular-flow detection — ⚠️ weak
-
-Recursive CTE over 18.5M Ethereum token transfers to find A→B→C→A wash-trading loops. Gorgeous
-graph. But it's a named challenge (crowded) and there is **no ground truth** — the demo reduces
-to "these wallets look suspicious, trust me," which judges cannot verify. Insight quality
-unverifiable.
+- **`execute_query` does NOT return rows.** It returns an `artifact_fqn` → call
+  `get_result_page` with it.
+- **`sample_data` wants a 3-part name** (`DB.SCHEMA.TABLE`), not the 4-part FQN the docs claim.
+- **Olist timestamps are VARCHAR** — use `TRY_TO_TIMESTAMP` (CRAFT does this for you).
+- Nebius is an **OpenAI-compatible endpoint** — point the OpenAI SDK at it, change base_url.
 
 ---
 
-# Landmines (all verified the hard way)
+## Timeline (2 hours, hard)
 
-### Data traps
+| Time | Do |
+| --- | --- |
+| **0:00–0:20** | Scaffold. Nebius client + CRAFT MCP connected. Prove ONE `generate_sql` → `execute_query` → `get_result_page` round-trip prints rows. |
+| **0:20–1:00** | The loop. Hypothesis list → for each: generate_sql, execute, model returns verdict + one-line reason. Print it as a live investigation log. |
+| **1:00–1:25** | Final synthesis: model reads all five results and writes the recommendation. One `generate_plotly_chart` of the state table (RJ vs SP). |
+| **1:25–1:45** | **Record the demo video.** Do this while it works, not at the end. |
+| **1:45–2:00** | Devpost writeup. Buffer. |
 
-- **`thelook` is SYNTHETIC with no latent structure.** Return rate (11–12%) and net margin per
-  customer (~$58) are *identical* across every acquisition channel. Any correlation you hunt for
-  returns null. It's also the most crowded dataset. **Avoid entirely.**
-- **Olist churn is unanalysable.** 3.12% repeat rate, flat across review scores. The canonical
-  "churn agent" prompt for this lane is a dead end.
-- **Olist has no clickstream.** No sessions, no browsing, no cart. Anything about *conversion*
-  is unmeasurable here.
-- **`deps-dev-v1` is NOT a time series of the dependency graph.** `ADVISORIES` and `DEPENDENTS`
-  have exactly **one snapshot each** (`DEPENDENCIES` 19, `PACKAGEVERSIONS` 44). You cannot
-  "watch a vulnerability spread." The real temporal signal is the event timestamps —
-  `ADVISORIES.Disclosed` and `PACKAGEVERSIONS.UpstreamPublishedAt` — which is better anyway.
-- **`github-repos` is a sample.** No issues/PRs tables. Only 80 `package.json` files across 76
-  repos.
+### Cut list (in this order, without hesitation)
+1. ~~Voice / ElevenLabs~~ — **already cut.** 2 hours. Not negotiable.
+2. Web UI → a clean terminal transcript is *better* for this demo anyway.
+3. The plotly chart → the state table in monospace is fine.
+4. Dynamic hypothesis generation → **hardcode the five hypotheses.** The agent still genuinely
+   runs, queries, and rules on each one. That is real. Do not gold-plate this.
 
-### Process traps
+> **If you're behind at 1:00, stop building and start rehearsing.** A working 4-hypothesis loop
+> you can narrate beats a 6-hypothesis loop you can't demo.
 
-- **Don't let voice eat the investigation.** 60% of the score is insight + CRAFT depth; voice
-  touches only the 20% story slice. Build it last, with a text fallback and a recorded backup.
-- **Don't claim what the data can't support.** The fastest way to lose a judge is one
-  unfalsifiable sentence in an otherwise rigorous demo.
+## The 5-minute demo
 
-### MCP gotchas
+1. *"The guide told us to investigate churn. So we did — and it doesn't exist."* → H1, 3.12% flat.
+2. *"So we asked what late delivery actually costs. Reviews — 70% one-star."* → H2.
+3. *"Obvious next move: find the bad sellers. We were wrong — they were just the big sellers."*
+   → H3, the volume artifact.
+4. *"Wrong again — the promise IS distance-adjusted."* → H4.
+5. *"Here's what survived."* → **Rio: next door to São Paulo, 2.3× worse. ~13% of your orders.**
+6. *"Our agent disproved three of its own theories to get here. Most agents would have shipped
+   the first chart they found."*
 
-- **`sample_data` wants a 3-part name** (`DATABASE.SCHEMA.TABLE`), *not* the 4-part FQN the tool
-  description advertises. The 4-part form returns `HTTP 400: got 4 parts`. Every *other* tool
-  (`get_schema`, `search_schema`) does want the full FQN.
-- **`execute_query` does not return rows.** It returns an `artifact_fqn`; call `get_result_page`
-  with it to see the data.
-- **All timestamps are microsecond epoch integers.** Divide by 1,000,000 before `TO_TIMESTAMP`.
-- **`generate_sql` often answers the question in its `explanation`** before you even run the
-  SQL — great for fast profiling.
+---
+
+## Runner-up (only if Olist somehow collapses)
+
+**Cohort Bias Auditor** (`idc`) — mark a TCGA patient as *imaged* if their `case_barcode` appears
+in `DICOM_ALL`; ask who's missing. Verified: imaging rate runs **0% (LAML, leukemia) → 77.5%
+(KIRC, kidney)**. IDC is sold as pan-cancer; it's a solid-tumor cohort. Race: **Asian 40.15% vs
+White 44.95%, p≈0.016 (real)**, but **Black 44.65% vs White 44.95% — no gap** (so don't overclaim).
+Caveat that's also the feature: LAML's 0% is *medicine, not bias* — the agent must tell those
+apart.
+
+## Dead — do not touch
+
+- **`thelook`** — SYNTHETIC. Return rate and margin per customer identical across every channel.
+  Any correlation returns null. Most crowded dataset.
+- **Olist churn** — 3.12%, flat. No signal. (It's the suggested prompt. It's a trap.)
+- **Olist conversion** — no clickstream exists. Unmeasurable.
+- **"Blast radius"** on `deps-dev` — it is *literally the project printed next to that dataset*
+  in the guide. Zero originality.
