@@ -93,7 +93,11 @@ whenever CRAFT's model updates.
 ### 2.2 `analysis/` — the deterministic core
 
 ```
-promise(seller, state, month) = handling_p95(seller) + transit_p95(state) × season_factor(month)
+promise(seller, state) = handling_p95(seller) + transit_p95(state)
+
+# seasonality is opt-in:
+promise(seller, state, month, seasonal=True)
+    = handling_p95(seller) + transit_p95(state) × season_factor(month)
 ```
 
 - `handling_p95(seller)` — `order_approved_at → order_delivered_carrier_date`, 95th percentile.
@@ -102,6 +106,13 @@ promise(seller, state, month) = handling_p95(seller) + transit_p95(state) × sea
   percentile, by `customer_state`.
 - `season_factor(month)` — derived from the monthly late-rate table, which swings 1.4% → 21.4%.
   Normalized so a median month is 1.0.
+
+**Seasonality is a flag, off by default** (`seasonal=False`, `?seasonal=true` on the API). The
+base promise is a pure two-term decomposition — that's the claim we defend. The season factor is
+fit on only ~2 years of data and one Black Friday, so it is offered as an explicit adjustment the
+caller opts into, and when enabled it appears as its own line in the attribution rather than
+being silently folded into the total. This keeps the core number defensible and makes the Black
+Friday story a demonstrable toggle rather than an assumption baked into every quote.
 
 Sellers or lanes below a support threshold (50 delivered items / 500 orders) fall back to the
 national aggregate rather than reporting a noisy percentile.
@@ -151,7 +162,9 @@ the same tools, so the demo always runs.
 ### 2.5 `api/` + `web/`
 
 FastAPI:
-- `POST /promise` — `{seller_id, customer_state, month}` → promise, attribution, verdict, narrative.
+- `POST /promise` — `{seller_id, customer_state, month, seasonal=false}` → promise, attribution,
+  verdict, narrative. With `seasonal=true`, the response carries an extra attribution line showing
+  what the season factor added or removed.
 - `GET /lanes` — the ops work-queue.
 - `GET /sellers` — handling-time scorecards.
 - `GET /investigation` — the falsification preamble, as structured data.
@@ -189,7 +202,7 @@ Tests run offline, on fixtures, with no credentials.
 | CRAFT OAuth PKCE from a standalone process is fiddly | Replay mode is the default; the build never blocks on auth |
 | `generate_sql` returns different SQL run-to-run | Fixtures assert on result shape, never SQL text |
 | p95 on a thin seller is noise | Support thresholds, with fallback to national aggregate |
-| Season factor overfits 2 years of data | Applied as a bounded multiplier, and reported separately so it can be inspected — never silently folded in |
+| Season factor overfits 2 years of data | Opt-in flag, off by default; when on, it is a bounded multiplier reported as its own attribution line |
 | LLM states a number it invented | The invariant test fails the build |
 
 ---
