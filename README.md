@@ -1,72 +1,123 @@
-# Hackathon info — July 11, 2026 (NYC)
+# The Promise Engine
 
-Organizer/sponsor research and setup info. Two same-day events are tracked here;
-**the active target is the AI Healthcare Hack NYC** (confirmed by Advik, Jul 11).
+An agent that decides the delivery date a marketplace can actually keep — built on real
+Olist (Brazilian e-commerce) data, recorded once via CRAFT and replayed forever after, so the
+whole thing runs with **zero credentials**.
 
----
+## The finding
 
-## 🎯 ACTIVE: AI Healthcare Hack NYC — Arya Health & Twilio AI Startup Searchlight
+Every marketplace shows a delivery date at checkout. Break it and reviews collapse: early
+deliveries average 4.29/5 (6.6% 1-star); deliveries 8–15 days late average 1.68/5 (70%
+1-star). So the promise isn't a cosmetic string — it's a risk decision made on every order.
 
-Full capture: [`luma-ai-healthcare-hack-nyc.md`](./luma-ai-healthcare-hack-nyc.md)
+Olist's current promise is distance-aware but variance-blind, and nowhere is that clearer
+than **Rio de Janeiro**, Olist's #2 market by order count, sitting right next to São Paulo:
 
-- Devpost: https://ai-healthcare-hack.devpost.com/
-- Deadline: **Jul 11, 2026 @ 3:30pm EDT** · Judging/demos 4:00–5:00pm
-- Location: 307 W 36th St, floor 13 (Arya Health office)
-- Challenge: production-ready **voice/text conversational AI agent** that carries a
-  full healthcare workflow end-to-end (intake, scheduling, reminders, insurance
-  verification, caregiver follow-up) — grounded in domain knowledge, personalized
-  to the caller. Reliability/guardrails/security are the bar, not extras.
-- **Must use Twilio telephony to qualify for sponsor prizes.**
-- Sponsors: **Twilio** (AI Startup Searchlight), **Lovable**, **Arya Health**
-- Judging: Technical implementation · Idea uniqueness · Team explanation · UI/UX (1–5 each)
-- Judges: Anand Chandrasekaran (Arya), Nikki Hu (Arya), Twilio
-- Prizes: $500/$300/$200 Twilio credits + Arya Health engineering interviews
+| | Rio de Janeiro | São Paulo (for contrast) |
+| --- | --- | --- |
+| Median delivery | **12 days** | 7 days |
+| p95 delivery | **38 days** | 20 days |
+| Current promise | 27 days | 19.8 days |
+| Late rate | **13.5%** (~1 in 7 orders) | 5.9% |
 
-### Chosen stack (decided)
+**Rio isn't slow, it's unpredictable.** Half of all Rio deliveries land in 12 days, but the
+tail runs to 38. Olist promises 27 and breaks its word to 1 in 7 Rio customers. Meanwhile SP,
+MG, and PR come back already calibrated (gap within ~1 day) — the estimator isn't stupid, it
+fails precisely where the tail is fat.
 
-- **Twilio** — telephony (required). Promo code `arya-hack` (see luma file for redemption steps)
-- **ElevenLabs** — voice/TTS (not a sponsor, but best-in-class and pairs natively with
-  Twilio ConversationRelay and via ElevenLabs Agents' Twilio integration)
-- **Arya Health** — no public developer API found (aryahealth.ai is post-acute/home-health
-  digital agents; the "arya.ai" APIs online are a different company). Their contribution is
-  venue + hiring-interview prizes. **Strategic angle**: pick the *caregiver follow-up /
-  home-health scheduling* workflow — it's literally Arya's domain, which should land well
-  with the Arya judges.
-- **Lovable** — sponsor credits available (Pro Plan, code `COMM-AI-GAYR`, alt
-  `COMM-HEAL-UYEF`) — use for a quick dashboard/frontend showing transcripts + bookings.
+That's why the engine's verdict for Rio is **FIX** (attack the tail — carrier handoff,
+routing, whatever is producing the 26-day spread), not **PAD** (lengthen the promise). Padding
+Rio out to 38 days would make Olist's #2 market look worse than a genuinely remote state like
+Pará. Nine lanes in this data are genuinely far away and PAD is the honest answer for them;
+five are already calibrated (OK); three (RJ, RS, CE) are FIX.
 
-### Setup checklist
+## The verdict rule — and an honest caveat about it
 
-- [ ] Twilio account + voice-capable phone number ([quick start](./luma-ai-healthcare-hack-nyc.md#event-blasts--resources-from-luma-updates-feed))
-- [ ] Redeem Twilio promo `arya-hack`
-- [ ] ElevenLabs account + API key
-- [ ] Redeem Lovable Pro credit
-- [ ] Devpost project page (name, one-liner, what/why, tools incl. Twilio usage, team, demo link)
+A lane is **FIX** when the gap between what it needs (p95) and what it promises is dominated
+by *variance* rather than *distance*: specifically, when the tail (`p95 - median`) is at least
+60% of the required promise (`tail_fraction >= 0.60`) and that tail is at least 5 days wide.
+Otherwise, if there's a real gap, it's **PAD**. Lanes already within 1.5 days of their p95 are
+**OK**.
 
-OSS starter-repo research for this event → `advik-bhatt/emergence-hackathon-project`
-(`ai-healthcare-hack-research.md`).
+**0.60 is a chosen operating point, not a natural break in the data.** Sorted by
+`tail_fraction`, the lowest FIX (Ceará, 0.600) and the highest PAD (Pernambuco, 0.594) are
+0.006 apart — Ceará sits exactly on the line. To make that fragility visible instead of
+hiding it, every lane also reports a `flip_distance`: how many days its p95 would have to move
+before the verdict flips.
 
----
+- **Rio's verdict is robust**: flip_distance = 8.1 days. Nothing in a reasonable re-estimation
+  changes its FIX call.
+- **Ceará's and several other lanes' verdicts are borderline** (CE's flip_distance is just 0.1
+  days). The product marks these with an `is_borderline` flag rather than reporting FIX/PAD
+  with false confidence — see the caveat chip in the checkout UI and the "(borderline)" marker
+  in the CLI/ops table.
 
-## Secondary: Enterprise Agents Hackathon — Emergence × Nebius
+## The invariant: numbers never pass through the LLM unchecked
 
-Full captures: [`devpost-enterprise-agents-hackathon.md`](./devpost-enterprise-agents-hackathon.md) ·
-[`luma-emergence-x-nebius.md`](./luma-emergence-x-nebius.md) ·
-[`nebius-hackathon-prerequisites.md`](./nebius-hackathon-prerequisites.md) ·
-[`craft_databases.md`](./craft_databases.md) ·
-[`research-starter-repos.md`](./research-starter-repos.md) ·
-**→ [`PROMISE-ENGINE.md`](./PROMISE-ENGINE.md) — the project we're building** ·
-[`project-ideas.md`](./project-ideas.md) ·
-[`SESSION-SUMMARY.md`](./SESSION-SUMMARY.md)
+The agent (`promise_engine.agent.loop.run_investigation`) calls tools
+(`promise_engine.agent.tools.Tools`) that wrap the analysis layer, and every tool call records
+every number it returns into a `computed` set. Before any narrative — LLM-written or scripted
+— is accepted, `agent.narrative.check_numbers()` walks the text and raises
+`HallucinatedNumber` if it states a figure that no tool ever produced (allowing only small
+rounding drift and common prose numbers like "1 in 7"). `run_investigation` calls this guard
+itself before returning an `Investigation`, so a model that invents a delivery estimate fails
+the build loudly instead of reaching a customer-facing promise. With no `NEBIUS_API_KEY` set,
+the same guard runs against a scripted narrative built from the same tool calls — the product
+demos identically either way.
 
-- Deadline: Jul 11, 2026 @ 5:00pm EDT · winners by 7pm
-- Theme: agentic data-intelligence on **Emergence CRAFT** (MCP text-to-SQL semantic layer)
-  + **Nebius Token Factory** inference (Nemotron-3 Super 120B), over Spider 2.0 databases
-- Judging: CRAFT usage depth 30% · Insight quality 30% · Agent architecture 20% · Story clarity 20%
-- Prizes: 1st = 6-month CRAFT access + $5,000 Nebius credits; 2nd/3rd/per-challenge = CRAFT + credits
-- Links: [Luma](https://luma.com/f5smb6kp?tk=MMAqbM) · [NDA](https://scanned.page/6tITpm) ·
-  [homepage](https://www.emergence.ai/hackathon#start) ·
-  [starter repo](https://github.com/EmergenceAI/nebius-emergence-hackathon) ·
-  [Nebius proxy](https://github.com/opencolin/claude-codex-nebius-proxy)
+**No conversion or revenue claim is made anywhere** — in code, prompts, or UI copy. Olist has
+no clickstream data (no sessions, page views, or cart events) in this dataset, so conversion
+is unmeasurable here, and any such claim would be indefensible. The case for action rests
+entirely on orders at risk and the measured damage to reviews.
 
-Other files: [`sponsor-env-vars.md`](./sponsor-env-vars.md) (env var setup for sponsor APIs).
+## Running it (zero credentials required)
+
+```bash
+uv run pytest                                              # 112 tests, all against replayed fixtures
+uv run python -m promise_engine.cli                        # falsification preamble + ops queue + Rio callout + narrative
+uv run uvicorn promise_engine.api.app:app --port 8000       # API + web app at http://localhost:8000
+```
+
+Everything above replays fixtures already committed in `fixtures/*.json` — no API keys, no
+network calls. Setting `NEBIUS_API_KEY` (see `.env.example`) switches the investigation from
+a scripted narrative to a live LLM (Nebius Token Factory, OpenAI-compatible) driving the same
+tools; the narrative guard applies identically to both paths.
+
+### The web app
+
+Two tabs, served from `web/` (plain HTML/CSS/JS, no build step, no CDN, dark-mode aware):
+
+- **Checkout** — pick a seller and destination state, optionally toggle "Black Friday
+  (November)", and see the current promise vs. the engine's promise side by side, a stacked
+  bar decomposing the promise into seller handling / lane transit / lane tail, and a
+  color-coded verdict banner (FIX / PAD / OK) with a borderline caveat where relevant.
+- **Ops** — the falsification preamble (which hypotheses died, which survived, with evidence)
+  followed by the ops work-queue ranked by orders at risk, with Rio on top.
+
+## Architecture
+
+```
+fixtures/*.json                         (recorded once from CRAFT, replayed forever)
+   -> craft/cassette.py                 record/replay store
+   -> analysis/{lanes,promise,season,verdict,hypotheses}.py   the analysis layer
+   -> agent/tools.py                    Tools wraps the analysis layer, records every number
+   -> agent/loop.py                     run_investigation(): LLM or scripted, same tools either way
+   -> agent/narrative.py                the guard: no number in prose that no tool produced
+   -> api/app.py                        FastAPI: /lanes /sellers /investigation /promise /states
+   -> web/                              the checkout + ops UI
+   -> cli.py                            terminal rendering of the same investigation
+```
+
+**All SQL came from CRAFT's `generate_sql`; none was hand-written.** The fixtures in
+`fixtures/*.json` are the recorded CRAFT responses (question, generated SQL, columns, rows);
+`craft/cassette.py` replays them by slug so the whole pipeline runs offline.
+
+## Known limitation: no TIGHTEN verdict
+
+The verdict rule has three outcomes: FIX (attack the tail), PAD (lengthen the promise), OK
+(leave it alone). There is no fourth verdict for **over-promising** — a lane whose promise is
+needlessly long relative to what it actually takes. In this data that's not a live problem: the
+largest over-promise (`gap` negative, i.e. `promised_days > p95_days`) is only 0.8 days (MG),
+well inside the OK tolerance. A fuller product serving other marketplaces or datasets should
+add a TIGHTEN verdict for lanes that are meaningfully over-promising, rather than silently
+folding them into OK.

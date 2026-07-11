@@ -1,0 +1,128 @@
+<title>The Promise Engine</title>
+<link rel="stylesheet" href="style.css">
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">&rarr;</span>
+      <div>
+        <h1>The Promise Engine</h1>
+        <p class="tagline">Rio isn't slow. It's unpredictable. That's a different problem.</p>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab-btn is-active" data-tab="checkout" role="tab" aria-selected="true">Checkout</button>
+      <button class="tab-btn" data-tab="ops" role="tab" aria-selected="false">Ops</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- TAB 1: CHECKOUT -->
+    <section id="tab-checkout" class="tab-panel is-active">
+      <div class="checkout-grid">
+        <div class="card panel-controls">
+          <h2>Checkout</h2>
+          <p class="muted">Simulate the promise a customer would see at checkout.</p>
+
+          <label class="field">
+            <span>Seller</span>
+            <select id="seller-select"></select>
+          </label>
+
+          <label class="field">
+            <span>Ship to</span>
+            <select id="state-select"></select>
+          </label>
+
+          <label class="field toggle-field">
+            <input type="checkbox" id="black-friday-toggle">
+            <span>Black Friday (November)</span>
+          </label>
+
+          <p class="fallback-note" id="fallback-note" hidden>
+            This seller has too little delivery history — the national median handling time was used instead.
+          </p>
+        </div>
+
+        <div class="card panel-result" id="result-panel">
+          <div class="loading" id="result-loading">Computing…</div>
+
+          <div class="result-body" id="result-body" hidden>
+            <div class="compare-row">
+              <div class="compare-cell current">
+                <div class="compare-label">Olist promises today</div>
+                <div class="compare-number" id="current-days">&mdash;</div>
+                <div class="compare-unit">days</div>
+                <div class="compare-consequence" id="current-consequence"></div>
+              </div>
+              <div class="compare-divider">vs</div>
+              <div class="compare-cell engine">
+                <div class="compare-label">The Promise Engine says</div>
+                <div class="compare-number" id="engine-days">&mdash;</div>
+                <div class="compare-unit">days</div>
+                <div class="compare-consequence" id="engine-consequence">the promise a 95th-percentile order actually needs</div>
+              </div>
+            </div>
+
+            <div class="decomposition">
+              <h3>How the engine's promise breaks down</h3>
+              <div class="stacked-bar" id="stacked-bar"></div>
+              <div class="bar-legend" id="bar-legend"></div>
+            </div>
+
+            <div class="verdict-banner" id="verdict-banner">
+              <div class="verdict-tag" id="verdict-tag">&mdash;</div>
+              <div class="verdict-text" id="verdict-text"></div>
+            </div>
+
+            <div class="chip-row" id="chip-row"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: OPS -->
+    <section id="tab-ops" class="tab-panel">
+      <div class="card">
+        <h2>Falsification preamble</h2>
+        <p class="muted">What we tested before recommending anything &mdash; and what survived.</p>
+        <div class="hypothesis-grid" id="hypothesis-grid"></div>
+      </div>
+
+      <div class="card narrative-card" id="narrative-card" hidden>
+        <h2>What the agent concluded</h2>
+        <p class="narrative-text" id="narrative-text"></p>
+      </div>
+
+      <div class="card">
+        <h2>Ops work queue</h2>
+        <p class="muted">Ranked by orders at risk &mdash; the promise-days ops actually ships broken.</p>
+        <div class="table-wrap">
+          <table class="queue-table" id="queue-table">
+            <thead>
+              <tr>
+                <th>State</th>
+                <th>Orders</th>
+                <th>Promised</th>
+                <th>Median</th>
+                <th>p95</th>
+                <th>Gap</th>
+                <th>Late rate</th>
+                <th>Orders at risk</th>
+                <th>Verdict</th>
+              </tr>
+            </thead>
+            <tbody id="queue-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footnote">
+    No claim is made anywhere in this product about conversion or revenue &mdash; Olist has no clickstream data,
+    so conversion is unmeasurable here. All figures come from the CRAFT-recorded fixtures via <code>generate_sql</code>.
+  </footer>
+</div>
+
+<script src="app.js"></script>
